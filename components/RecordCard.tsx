@@ -43,24 +43,23 @@ export function RecordCard({
           <CalendarDays size={15} />
           {formatDate(feat.date)}
         </span>
-        <span>
-          <Map size={15} />
-          {feat.place || "Local aberto"}
-        </span>
+        {feat.place ? (
+          <span>
+            <Map size={15} />
+            {feat.place}
+          </span>
+        ) : null}
       </div>
       <p>{feat.notes || "Sem notas adicionais."}</p>
-      <div className="recordFooter">
-        <span>{feat.character || "Personagem nao definido"}</span>
-        <span>{feat.world || "Mundo nao definido"}</span>
-      </div>
+      {feat.character || feat.world ? (
+        <div className="recordFooter">
+          {feat.character ? <span>{feat.character}</span> : null}
+          {feat.world ? <span>{feat.world}</span> : null}
+        </div>
+      ) : null}
       <div className="lootLine">
         <Gem size={16} />
         <span>{feat.loot || "Sem loot registrado"}</span>
-      </div>
-      <div className="difficulty" aria-label={`Dificuldade ${feat.difficulty}`}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <span key={index} className={index < feat.difficulty ? "filled" : ""} />
-        ))}
       </div>
     </article>
   );

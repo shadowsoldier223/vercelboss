@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, storageKey } from "./defaults";
+import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
+import { parseHuntingAnalyser } from "./hunts";
 import { getLootBoss, parseLootPaste } from "./loot";
-import type { AppData, Duo, DuoStatus, Feat, LootDrop } from "./types";
+import type { AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootDrop, UserRole } from "./types";
 
 type FeatInput = Omit<Feat, "id">;
+type HuntInput = Omit<HuntSession, "id" | "userId" | "userName" | "createdAt">;
+type UserInput = Omit<AppUser, "id">;
+const sessionEventName = "closedboss-session-change";
 
 function makeId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -17,9 +21,11 @@ function makeId(prefix: string) {
 
 function normalizeData(data: Partial<AppData> | null): AppData {
   return {
-    feats: data?.feats?.length ? data.feats : defaultData.feats,
-    duos: data?.duos?.length ? data.duos : defaultData.duos,
-    drops: data?.drops ?? [],
+    feats: Array.isArray(data?.feats) ? data.feats : defaultData.feats,
+    duos: Array.isArray(data?.duos) ? data.duos : defaultData.duos,
+    drops: Array.isArray(data?.drops) ? data.drops : [],
+    users: Array.isArray(data?.users) && data.users.length ? data.users : defaultData.users,
+    hunts: Array.isArray(data?.hunts) ? data.hunts : [],
   };
 }
 
@@ -50,11 +56,16 @@ function readStoredData(): AppData {
 
 export function useAppData() {
   const [data, setData] = useState<AppData>(defaultData);
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     try {
-      setData(readStoredData());
+      const storedData = readStoredData();
+      const storedSession = window.localStorage.getItem(sessionKey);
+
+      setData(storedData);
+      setCurrentUser(storedData.users.find((user) => user.id === storedSession) ?? null);
     } catch {
       setData(defaultData);
     }
@@ -67,6 +78,45 @@ export function useAppData() {
       window.localStorage.setItem(storageKey, JSON.stringify(data));
     }
   }, [data, hasLoaded]);
+
+  useEffect(() => {
+    if (!hasLoaded || !currentUser) return;
+
+    const freshUser = data.users.find((user) => user.id === currentUser.id);
+
+    if (!freshUser) {
+      setCurrentUser(null);
+      window.localStorage.removeItem(sessionKey);
+      return;
+    }
+
+    if (
+      freshUser.username !== currentUser.username ||
+      freshUser.password !== currentUser.password ||
+      freshUser.role !== currentUser.role
+    ) {
+      setCurrentUser(freshUser);
+    }
+  }, [currentUser, data.users, hasLoaded]);
+
+  useEffect(() => {
+    if (!hasLoaded) return;
+
+    function syncSession() {
+      const storedSession = window.localStorage.getItem(sessionKey);
+      setCurrentUser(data.users.find((user) => user.id === storedSession) ?? null);
+    }
+
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(sessionEventName, syncSession);
+
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(sessionEventName, syncSession);
+    };
+  }, [data.users, hasLoaded]);
+
+  const isAdmin = currentUser?.role === "admin";
 
   const stats = useMemo(() => {
     const itemTotals = new Map<string, { item: string; quantity: number; category: string }>();
@@ -96,12 +146,36 @@ export function useAppData() {
       achievements: data.feats.filter((feat) => feat.type === "Conquista").length,
       duos: data.duos.length,
       drops: data.drops.length,
+      registeredHunts: data.hunts.length,
+      huntBalance: data.hunts.reduce((total, hunt) => total + hunt.balance, 0),
       itemTotals: Array.from(itemTotals.values()).sort((a, b) => b.quantity - a.quantity),
       characterTotals: Array.from(characterTotals.values()).sort((a, b) => b.quantity - a.quantity),
     };
   }, [data]);
 
+  function login(username: string, password: string) {
+    const normalizedUsername = username.trim().toLowerCase();
+    const user = data.users.find(
+      (entry) => entry.username.toLowerCase() === normalizedUsername && entry.password === password,
+    );
+
+    if (!user) return false;
+
+    setCurrentUser(user);
+    window.localStorage.setItem(sessionKey, user.id);
+    window.dispatchEvent(new Event(sessionEventName));
+    return true;
+  }
+
+  function logout() {
+    setCurrentUser(null);
+    window.localStorage.removeItem(sessionKey);
+    window.dispatchEvent(new Event(sessionEventName));
+  }
+
   function addFeat(input: FeatInput) {
+    if (!currentUser) return;
+
     setData((current) => ({
       ...current,
       feats: [{ ...input, id: makeId("feat") }, ...current.feats],
@@ -109,14 +183,25 @@ export function useAppData() {
   }
 
   function removeFeat(id: string) {
+    if (!isAdmin) return;
+
     setData((current) => ({
       ...current,
       feats: current.feats.filter((feat) => feat.id !== id),
     }));
   }
 
+  function updateFeat(id: string, patch: Partial<FeatInput>) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      feats: current.feats.map((feat) => (feat.id === id ? { ...feat, ...patch } : feat)),
+    }));
+  }
+
   function addDuo(left: string, right: string) {
-    if (!left.trim() || !right.trim()) return;
+    if (!isAdmin || !left.trim() || !right.trim()) return;
 
     setData((current) => ({
       ...current,
@@ -135,13 +220,26 @@ export function useAppData() {
   }
 
   function removeDuo(id: string) {
+    if (!isAdmin) return;
+
     setData((current) => ({
       ...current,
       duos: current.duos.filter((duo) => duo.id !== id),
     }));
   }
 
+  function updateDuo(id: string, patch: Partial<Pick<Duo, "left" | "right">>) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      duos: current.duos.map((duo) => (duo.id === id ? { ...duo, ...patch } : duo)),
+    }));
+  }
+
   function markDuo(id: string, status: Exclude<DuoStatus, null>) {
+    if (!isAdmin) return;
+
     const markedAt = new Date();
 
     setData((current) => ({
@@ -160,6 +258,8 @@ export function useAppData() {
   }
 
   function resetDuo(id: string) {
+    if (!isAdmin) return;
+
     setData((current) => ({
       ...current,
       duos: current.duos.map((duo) =>
@@ -186,6 +286,8 @@ export function useAppData() {
     lootText: string;
     date: string;
   }) {
+    if (!currentUser) return [];
+
     const boss = getLootBoss(bossKey);
     const parsedDrops = parseLootPaste(lootText, bossKey);
 
@@ -231,6 +333,8 @@ export function useAppData() {
   }
 
   function undoLastLoot() {
+    if (!isAdmin) return;
+
     const firstDrop = data.drops[0];
     if (!firstDrop) return;
 
@@ -242,25 +346,136 @@ export function useAppData() {
     }));
   }
 
+  function saveHuntSession(input: HuntInput) {
+    if (!currentUser || !input.rawText.trim()) return null;
+
+    const parsed = parseHuntingAnalyser(input.rawText);
+    const title = input.title.trim() || "Hunt registrada";
+    const character = input.character.trim() || currentUser.username;
+    const notes = input.notes.trim();
+    const hunt: HuntSession = {
+      ...input,
+      ...parsed,
+      id: makeId("hunt"),
+      userId: currentUser.id,
+      userName: currentUser.username,
+      title,
+      character,
+      notes,
+      createdAt: new Date().toISOString(),
+    };
+    const result = hunt.balance
+      ? `Balance ${hunt.balance.toLocaleString("pt-BR")}`
+      : hunt.loot
+        ? `Loot ${hunt.loot.toLocaleString("pt-BR")}`
+        : "Hunting Analyser salvo";
+
+    setData((current) => ({
+      ...current,
+      hunts: [hunt, ...current.hunts],
+      feats: [
+        {
+          id: makeId("feat"),
+          type: "Hunt",
+          title,
+          character,
+          world: "",
+          date: input.date,
+          place: "",
+          loot: result,
+          notes: notes || `Sessao ${hunt.duration || "sem tempo informado"}.`,
+          difficulty: 3,
+        },
+        ...current.feats,
+      ],
+    }));
+
+    return hunt;
+  }
+
+  function removeHunt(id: string) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      hunts: current.hunts.filter((hunt) => hunt.id !== id),
+    }));
+  }
+
+  function addUser(input: UserInput) {
+    if (!isAdmin || !input.username.trim() || !input.password.trim()) return false;
+
+    const username = input.username.trim();
+    const alreadyExists = data.users.some((user) => user.username.toLowerCase() === username.toLowerCase());
+
+    if (alreadyExists) return false;
+
+    setData((current) => ({
+      ...current,
+      users: [
+        ...current.users,
+        {
+          id: makeId("user"),
+          username,
+          password: input.password,
+          role: input.role,
+        },
+      ],
+    }));
+
+    return true;
+  }
+
+  function updateUser(id: string, patch: Partial<Pick<AppUser, "password" | "role">>) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      users: current.users.map((user) => (user.id === id ? { ...user, ...patch } : user)),
+    }));
+  }
+
+  function removeUser(id: string) {
+    if (!isAdmin || currentUser?.id === id) return;
+
+    setData((current) => ({
+      ...current,
+      users: current.users.filter((user) => user.id !== id),
+    }));
+  }
+
   function clearAllLocalData() {
+    if (!isAdmin) return;
+
     setData(defaultData);
   }
 
   return {
     data,
     hasLoaded,
+    currentUser,
+    isAdmin,
     stats,
+    login,
+    logout,
     addFeat,
     removeFeat,
+    updateFeat,
     addDuo,
     removeDuo,
+    updateDuo,
     markDuo,
     resetDuo,
     saveLootSession,
     undoLastLoot,
+    saveHuntSession,
+    removeHunt,
+    addUser,
+    updateUser,
+    removeUser,
     clearAllLocalData,
   };
 }
 
 export type AppDataHook = ReturnType<typeof useAppData>;
-export type { Duo, Feat, LootDrop };
+export type { AppUser, Duo, Feat, HuntSession, LootDrop, UserRole };

@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Check, Clock, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
+import Link from "next/link";
+import { Check, Clock, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 export default function DuosPage() {
-  const { data, addDuo, markDuo, removeDuo, resetDuo } = useAppData();
+  const { currentUser, data, addDuo, isAdmin, markDuo, removeDuo, resetDuo } = useAppData();
   const [left, setLeft] = useState("");
   const [right, setRight] = useState("");
 
@@ -22,6 +23,20 @@ export default function DuosPage() {
     addDuo(left, right);
     setLeft("");
     setRight("");
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="loginPrompt">
+        <Shield size={30} />
+        <span className="eyebrow">Duos</span>
+        <h1>Entre para ver os duos</h1>
+        <p>Administradores podem adicionar, marcar, resetar e remover duplas.</p>
+        <Link href="/login" className="submitButton">
+          Entrar
+        </Link>
+      </section>
+    );
   }
 
   return (
@@ -40,29 +55,37 @@ export default function DuosPage() {
       </section>
 
       <section className="pageGrid duoGrid">
-        <aside className="panel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Adicionar</span>
-              <h2>Nova dupla</h2>
+        {isAdmin ? (
+          <aside className="panel">
+            <div className="panelHeader">
+              <div>
+                <span className="eyebrow">Adicionar</span>
+                <h2>Nova dupla</h2>
+              </div>
+              <Plus size={22} />
             </div>
-            <Plus size={22} />
-          </div>
-          <form className="entryForm" onSubmit={submit}>
-            <label>
-              Jogador 1
-              <input value={left} onChange={(event) => setLeft(event.target.value)} placeholder="Eligos" />
-            </label>
-            <label>
-              Jogador 2
-              <input value={right} onChange={(event) => setRight(event.target.value)} placeholder="Malvadinho" />
-            </label>
-            <button className="submitButton" type="submit">
-              <Plus size={18} />
-              Adicionar duo
-            </button>
-          </form>
-        </aside>
+            <form className="entryForm" onSubmit={submit}>
+              <label>
+                Jogador 1
+                <input value={left} onChange={(event) => setLeft(event.target.value)} placeholder="Eligos" />
+              </label>
+              <label>
+                Jogador 2
+                <input value={right} onChange={(event) => setRight(event.target.value)} placeholder="Malvadinho" />
+              </label>
+              <button className="submitButton" type="submit">
+                <Plus size={18} />
+                Adicionar duo
+              </button>
+            </form>
+          </aside>
+        ) : (
+          <aside className="panel readonlyPanel">
+            <Users size={24} />
+            <h2>Duos em modo leitura</h2>
+            <p>Somente administradores podem alterar cooldowns e lista de duplas.</p>
+          </aside>
+        )}
 
         <section className="panel">
           <div className="sectionTitle">
@@ -85,20 +108,22 @@ export default function DuosPage() {
                       : "pronto agora"}
                   </p>
                 </div>
-                <div className="rowActions">
-                  <button type="button" title="OK" onClick={() => markDuo(duo.id, "done")}>
-                    <Check size={16} />
-                  </button>
-                  <button type="button" title="Fail" onClick={() => markDuo(duo.id, "fail")}>
-                    <X size={16} />
-                  </button>
-                  <button type="button" title="Resetar" onClick={() => resetDuo(duo.id)}>
-                    <RotateCcw size={16} />
-                  </button>
-                  <button type="button" title="Remover" onClick={() => removeDuo(duo.id)}>
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                {isAdmin ? (
+                  <div className="rowActions">
+                    <button type="button" title="OK" onClick={() => markDuo(duo.id, "done")}>
+                      <Check size={16} />
+                    </button>
+                    <button type="button" title="Fail" onClick={() => markDuo(duo.id, "fail")}>
+                      <X size={16} />
+                    </button>
+                    <button type="button" title="Resetar" onClick={() => resetDuo(duo.id)}>
+                      <RotateCcw size={16} />
+                    </button>
+                    <button type="button" title="Remover" onClick={() => removeDuo(duo.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>

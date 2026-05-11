@@ -1,5 +1,13 @@
 export type FeatType = "Boss" | "Hunt" | "Conquista";
 export type DuoStatus = "done" | "fail" | null;
+export type UserRole = "admin" | "user";
+
+export type AppUser = {
+  id: string;
+  username: string;
+  password: string;
+  role: UserRole;
+};
 
 export type Feat = {
   id: string;
@@ -34,8 +42,32 @@ export type LootDrop = {
   createdAt: string;
 };
 
+export type HuntSession = {
+  id: string;
+  userId: string;
+  userName: string;
+  title: string;
+  character: string;
+  date: string;
+  duration: string;
+  loot: number;
+  supplies: number;
+  balance: number;
+  damage: number;
+  damageHour: number;
+  healing: number;
+  healingHour: number;
+  experience: number;
+  experienceHour: number;
+  rawText: string;
+  notes: string;
+  createdAt: string;
+};
+
 export type AppData = {
   feats: Feat[];
   duos: Duo[];
   drops: LootDrop[];
+  users: AppUser[];
+  hunts: HuntSession[];
 };

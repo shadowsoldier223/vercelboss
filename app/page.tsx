@@ -10,6 +10,12 @@ import { useAppData } from "@/lib/useAppData";
 
 const tools = [
   {
+    href: "/registrar-hunt",
+    title: "Registrar Hunt",
+    description: "Cole o Hunting Analyser e salve a hunt por usuario.",
+    icon: Swords,
+  },
+  {
     href: "/registros",
     title: "Registros",
     description: "Anote hunts, bosses soltos, conquistas e metas.",
@@ -61,7 +67,7 @@ export default function DashboardPage() {
           <h1>ClosedBoss</h1>
           <p>
             Um painel para transformar o fluxo bruto do bot em telas: registros,
-            bosses, duos, parser de loot e estatisticas.
+            hunts por usuario, bosses, duos, parser de loot e estatisticas.
           </p>
         </div>
       </section>
@@ -69,7 +75,7 @@ export default function DashboardPage() {
       <section className="statGrid">
         <StatCard icon={BarChart3} label="Registros" value={stats.totalFeats} />
         <StatCard icon={Crown} label="Bosses" value={stats.bosses} />
-        <StatCard icon={Swords} label="Hunts" value={stats.hunts} />
+        <StatCard icon={Swords} label="Hunts registradas" value={stats.registeredHunts} />
         <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
       </section>
 

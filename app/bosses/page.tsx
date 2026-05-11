@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Crown, Plus, Search } from "lucide-react";
+import Link from "next/link";
+import { Crown, Plus, Search, Shield } from "lucide-react";
 import { RecordCard } from "@/components/RecordCard";
 import { createEmptyFeat } from "@/lib/defaults";
 import { useAppData } from "@/lib/useAppData";
 
 export default function BossesPage() {
-  const { data, addFeat, removeFeat } = useAppData();
+  const { currentUser, data, addFeat, isAdmin, removeFeat } = useAppData();
   const [form, setForm] = useState(createEmptyFeat("Boss"));
   const [query, setQuery] = useState("");
 
@@ -29,80 +30,102 @@ export default function BossesPage() {
     setForm(createEmptyFeat("Boss"));
   }
 
+  if (!currentUser) {
+    return (
+      <section className="loginPrompt">
+        <Shield size={30} />
+        <span className="eyebrow">Bosses</span>
+        <h1>Entre para ver os bosses</h1>
+        <p>Administradores podem adicionar e remover bosses do painel.</p>
+        <Link href="/login" className="submitButton">
+          Entrar
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section className="pageGrid">
-      <aside className="panel">
-        <div className="panelHeader">
-          <div>
-            <span className="eyebrow">Boss tracker</span>
-            <h1>Registrar boss</h1>
-          </div>
-          <Crown size={22} />
-        </div>
-
-        <form className="entryForm" onSubmit={submit}>
-          <label>
-            Boss
-            <input
-              required
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Necrolune, Nocturnia, Ferumbras..."
-            />
-          </label>
-
-          <div className="fieldGrid">
-            <label>
-              Personagem
-              <input
-                value={form.character}
-                onChange={(event) => setForm((current) => ({ ...current, character: event.target.value }))}
-                placeholder="Quem participou"
-              />
-            </label>
-            <label>
-              Data
-              <input
-                type="date"
-                value={form.date}
-                onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
-              />
-            </label>
+      {isAdmin ? (
+        <aside className="panel">
+          <div className="panelHeader">
+            <div>
+              <span className="eyebrow">Boss tracker</span>
+              <h1>Registrar boss</h1>
+            </div>
+            <Crown size={22} />
           </div>
 
-          <label>
-            Local
-            <input
-              value={form.place}
-              onChange={(event) => setForm((current) => ({ ...current, place: event.target.value }))}
-              placeholder="Sala, quest ou reward chest"
-            />
-          </label>
+          <form className="entryForm" onSubmit={submit}>
+            <label>
+              Boss
+              <input
+                required
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Necrolune, Nocturnia, Ferumbras..."
+              />
+            </label>
 
-          <label>
-            Loot
-            <input
-              value={form.loot}
-              onChange={(event) => setForm((current) => ({ ...current, loot: event.target.value }))}
-              placeholder="Itens importantes"
-            />
-          </label>
+            <div className="fieldGrid">
+              <label>
+                Personagem
+                <input
+                  value={form.character}
+                  onChange={(event) => setForm((current) => ({ ...current, character: event.target.value }))}
+                  placeholder="Quem participou"
+                />
+              </label>
+              <label>
+                Data
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
+                />
+              </label>
+            </div>
 
-          <label>
-            Observacoes
-            <textarea
-              value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              placeholder="Time, horario, split, print..."
-            />
-          </label>
+            <label>
+              Local
+              <input
+                value={form.place}
+                onChange={(event) => setForm((current) => ({ ...current, place: event.target.value }))}
+                placeholder="Sala, quest ou reward chest"
+              />
+            </label>
 
-          <button className="submitButton" type="submit">
-            <Plus size={18} />
-            Salvar boss
-          </button>
-        </form>
-      </aside>
+            <label>
+              Loot
+              <input
+                value={form.loot}
+                onChange={(event) => setForm((current) => ({ ...current, loot: event.target.value }))}
+                placeholder="Itens importantes"
+              />
+            </label>
+
+            <label>
+              Observacoes
+              <textarea
+                value={form.notes}
+                onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                placeholder="Time, horario, split, print..."
+              />
+            </label>
+
+            <button className="submitButton" type="submit">
+              <Plus size={18} />
+              Salvar boss
+            </button>
+          </form>
+        </aside>
+      ) : (
+        <aside className="panel readonlyPanel">
+          <Crown size={24} />
+          <h1>Bosses em modo leitura</h1>
+          <p>Somente administradores podem adicionar ou remover bosses.</p>
+        </aside>
+      )}
 
       <section className="recordsArea">
         <div className="toolbar">
@@ -125,7 +148,7 @@ export default function BossesPage() {
 
         <div className="recordList">
           {bosses.map((feat) => (
-            <RecordCard feat={feat} onRemove={removeFeat} key={feat.id} />
+            <RecordCard feat={feat} onRemove={isAdmin ? removeFeat : undefined} key={feat.id} />
           ))}
         </div>
       </section>

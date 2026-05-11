@@ -1,6 +1,7 @@
-import type { AppData, Duo, Feat } from "./types";
+import type { AppData, AppUser, Duo, Feat } from "./types";
 
 export const storageKey = "closedboss-state";
+export const sessionKey = "closedboss-session";
 export const previousStorageKey = "closeboss-state";
 export const oldStorageKey = "tibia-feats";
 export const duoCooldownMs = 20 * 60 * 60 * 1000;
@@ -49,10 +50,17 @@ export const starterDuos: Duo[] = [
   { id: "duo-10", left: "Larvae", right: "Dantas Ishigo", status: null, markedAt: null, cooldownUntil: null },
 ];
 
+export const starterUsers: AppUser[] = [
+  { id: "user-admin", username: "admin", password: "admin123", role: "admin" },
+  { id: "user-player", username: "player", password: "player123", role: "user" },
+];
+
 export const defaultData: AppData = {
   feats: starterFeats,
   duos: starterDuos,
   drops: [],
+  users: starterUsers,
+  hunts: [],
 };
 
 export function createEmptyFeat(type: Feat["type"] = "Boss"): Omit<Feat, "id"> {

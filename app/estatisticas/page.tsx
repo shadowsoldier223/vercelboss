@@ -2,6 +2,7 @@
 
 import { BarChart3, Crown, Gem, Swords, Trophy } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
+import { formatSignedNumber } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 export default function EstatisticasPage() {
@@ -18,8 +19,8 @@ export default function EstatisticasPage() {
       <section className="statGrid">
         <StatCard icon={BarChart3} label="Registros" value={stats.totalFeats} />
         <StatCard icon={Crown} label="Bosses" value={stats.bosses} />
-        <StatCard icon={Swords} label="Hunts" value={stats.hunts} />
-        <StatCard icon={Trophy} label="Conquistas" value={stats.achievements} />
+        <StatCard icon={Swords} label="Hunts salvas" value={stats.registeredHunts} />
+        <StatCard icon={Trophy} label="Balance hunts" value={formatSignedNumber(stats.huntBalance)} />
       </section>
 
       <section className="statsColumns">

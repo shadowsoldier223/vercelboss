@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Crown, Plus, Search, Swords, Trophy } from "lucide-react";
+import Link from "next/link";
+import { Crown, Plus, Search, Shield, Swords, Trophy } from "lucide-react";
 import { RecordCard } from "@/components/RecordCard";
 import { createEmptyFeat } from "@/lib/defaults";
 import type { FeatType } from "@/lib/types";
@@ -10,7 +11,7 @@ import { useAppData } from "@/lib/useAppData";
 const types: FeatType[] = ["Boss", "Hunt", "Conquista"];
 
 export default function RegistrosPage() {
-  const { data, addFeat, removeFeat } = useAppData();
+  const { currentUser, data, addFeat, isAdmin, removeFeat } = useAppData();
   const [form, setForm] = useState(createEmptyFeat("Hunt"));
   const [filter, setFilter] = useState<FeatType | "Todos">("Todos");
   const [query, setQuery] = useState("");
@@ -31,6 +32,20 @@ export default function RegistrosPage() {
 
     addFeat(form);
     setForm(createEmptyFeat(form.type));
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="loginPrompt">
+        <Shield size={30} />
+        <span className="eyebrow">Registros</span>
+        <h1>Entre para salvar registros</h1>
+        <p>O login separa os usos do painel e libera as ferramentas de cadastro.</p>
+        <Link href="/login" className="submitButton">
+          Entrar
+        </Link>
+      </section>
+    );
   }
 
   return (
@@ -147,7 +162,7 @@ export default function RegistrosPage() {
 
         <div className="recordList">
           {filtered.map((feat) => (
-            <RecordCard feat={feat} onRemove={removeFeat} key={feat.id} />
+            <RecordCard feat={feat} onRemove={isAdmin ? removeFeat : undefined} key={feat.id} />
           ))}
         </div>
       </section>

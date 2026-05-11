@@ -1,14 +1,15 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Gem, Plus, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Gem, Plus, RotateCcw, Shield } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { today } from "@/lib/defaults";
 import { lootBosses, parseLootPaste } from "@/lib/loot";
 import { useAppData } from "@/lib/useAppData";
 
 export default function LootPage() {
-  const { stats, saveLootSession, undoLastLoot } = useAppData();
+  const { currentUser, isAdmin, stats, saveLootSession, undoLastLoot } = useAppData();
   const [bossKey, setBossKey] = useState(lootBosses[0].key);
   const [player, setPlayer] = useState("");
   const [date, setDate] = useState(today());
@@ -28,6 +29,20 @@ export default function LootPage() {
 
     setMessage(`${saved.length} drops salvos e um registro de boss criado.`);
     setLootText("");
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="loginPrompt">
+        <Shield size={30} />
+        <span className="eyebrow">Loot</span>
+        <h1>Entre para salvar loots</h1>
+        <p>O parser cria drops e registros vinculados ao painel.</p>
+        <Link href="/login" className="submitButton">
+          Entrar
+        </Link>
+      </section>
+    );
   }
 
   return (
@@ -91,10 +106,12 @@ export default function LootPage() {
             </button>
           </form>
 
-          <button className="secondaryButton" type="button" onClick={undoLastLoot}>
-            <RotateCcw size={16} />
-            Desfazer ultimo loot
-          </button>
+          {isAdmin ? (
+            <button className="secondaryButton" type="button" onClick={undoLastLoot}>
+              <RotateCcw size={16} />
+              Desfazer ultimo loot
+            </button>
+          ) : null}
 
           {message ? <p className="notice">{message}</p> : null}
         </aside>

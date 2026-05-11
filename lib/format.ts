@@ -31,3 +31,15 @@ export function formatRemainingTime(isoDate: string | null) {
 export function isCooldownActive(isoDate: string | null) {
   return Boolean(isoDate && new Date(isoDate).getTime() > Date.now());
 }
+
+export function formatNumber(value: number) {
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
+export function formatSignedNumber(value: number) {
+  const formatted = formatNumber(Math.abs(value));
+
+  if (value > 0) return `+${formatted}`;
+  if (value < 0) return `-${formatted}`;
+  return formatted;
+}
