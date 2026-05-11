@@ -58,7 +58,7 @@ export default function DashboardPage() {
             <Sparkles size={30} />
           </span>
           <span className="eyebrow">Ferramenta simples e funcional</span>
-          <h1>CloseBoss</h1>
+          <h1>ClosedBoss</h1>
           <p>
             Um painel para transformar o fluxo bruto do bot em telas: registros,
             bosses, duos, parser de loot e estatisticas.

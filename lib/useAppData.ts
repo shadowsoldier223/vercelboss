@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { defaultData, duoCooldownMs, oldStorageKey, storageKey } from "./defaults";
+import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, storageKey } from "./defaults";
 import { getLootBoss, parseLootPaste } from "./loot";
 import type { AppData, Duo, DuoStatus, Feat, LootDrop } from "./types";
 
@@ -28,6 +28,12 @@ function readStoredData(): AppData {
 
   if (stored) {
     return normalizeData(JSON.parse(stored) as Partial<AppData>);
+  }
+
+  const previousStored = window.localStorage.getItem(previousStorageKey);
+
+  if (previousStored) {
+    return normalizeData(JSON.parse(previousStored) as Partial<AppData>);
   }
 
   const oldFeats = window.localStorage.getItem(oldStorageKey);

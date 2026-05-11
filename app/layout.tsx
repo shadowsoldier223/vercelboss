@@ -3,7 +3,7 @@ import { AppNav } from "@/components/AppNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CloseBoss",
+  title: "ClosedBoss",
   description: "Painel simples para bosses, duos, loots e registros de Tibia.",
 };
 

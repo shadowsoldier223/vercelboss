@@ -23,7 +23,7 @@ export function AppNav() {
           <Shield size={22} />
         </span>
         <div>
-          <strong>CloseBoss</strong>
+          <strong>ClosedBoss</strong>
           <span>painel Tibia</span>
         </div>
       </Link>

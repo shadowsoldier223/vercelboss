@@ -1,6 +1,7 @@
 import type { AppData, Duo, Feat } from "./types";
 
-export const storageKey = "closeboss-state";
+export const storageKey = "closedboss-state";
+export const previousStorageKey = "closeboss-state";
 export const oldStorageKey = "tibia-feats";
 export const duoCooldownMs = 20 * 60 * 60 * 1000;
 
