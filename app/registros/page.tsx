@@ -19,7 +19,7 @@ export default function RegistrosPage() {
     return data.feats
       .filter((feat) => filter === "Todos" || feat.type === filter)
       .filter((feat) =>
-        `${feat.title} ${feat.character} ${feat.world} ${feat.place} ${feat.loot} ${feat.notes}`
+        `${feat.title} ${feat.character} ${feat.loot} ${feat.notes}`
           .toLowerCase()
           .includes(query.toLowerCase()),
       );
@@ -71,54 +71,21 @@ export default function RegistrosPage() {
             />
           </label>
 
-          <div className="fieldGrid">
-            <label>
-              Personagem
-              <input
-                value={form.character}
-                onChange={(event) => setForm((current) => ({ ...current, character: event.target.value }))}
-                placeholder="Nome do char"
-              />
-            </label>
-            <label>
-              Mundo
-              <input
-                value={form.world}
-                onChange={(event) => setForm((current) => ({ ...current, world: event.target.value }))}
-                placeholder="Ex: Rubinot"
-              />
-            </label>
-          </div>
-
-          <div className="fieldGrid">
-            <label>
-              Data
-              <input
-                type="date"
-                value={form.date}
-                onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
-              />
-            </label>
-            <label>
-              Dificuldade
-              <input
-                type="range"
-                min="1"
-                max="5"
-                value={form.difficulty}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, difficulty: Number(event.target.value) }))
-                }
-              />
-            </label>
-          </div>
+          <label>
+            Personagem
+            <input
+              value={form.character}
+              onChange={(event) => setForm((current) => ({ ...current, character: event.target.value }))}
+              placeholder="Nome do char"
+            />
+          </label>
 
           <label>
-            Local
+            Data
             <input
-              value={form.place}
-              onChange={(event) => setForm((current) => ({ ...current, place: event.target.value }))}
-              placeholder="Respawn, boss room ou quest"
+              type="date"
+              value={form.date}
+              onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
             />
           </label>
 
