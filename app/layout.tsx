@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { AppNav } from "@/components/AppNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tibia Feats",
-  description: "Registro pessoal de bosses, hunts e conquistas no MMORPG Tibia.",
+  title: "CloseBoss",
+  description: "Painel simples para bosses, duos, loots e registros de Tibia.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <main className="appShell">
+          <AppNav />
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
