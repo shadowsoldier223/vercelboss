@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Crown, Gem, Home, LogIn, LogOut, ScrollText, Shield, Swords, UserCog, Users } from "lucide-react";
+import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Shield, Swords, UserCog, Users } from "lucide-react";
 import { useAppData } from "@/lib/useAppData";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/registrar-hunt", label: "Registrar Hunt", icon: Swords },
-  { href: "/registros", label: "Registros", icon: ScrollText },
   { href: "/bosses", label: "Bosses", icon: Crown },
   { href: "/duos", label: "Duos", icon: Users },
   { href: "/loot", label: "Loot", icon: Gem },

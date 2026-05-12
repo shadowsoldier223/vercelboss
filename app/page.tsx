@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BarChart3, Crown, Gem, ScrollText, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Crown, Gem, Sparkles, Swords, Trophy, Users } from "lucide-react";
 import { LoginPanel } from "@/components/LoginPanel";
 import { RecordCard } from "@/components/RecordCard";
 import { StatCard } from "@/components/StatCard";
@@ -15,12 +15,6 @@ const tools = [
     title: "Registrar Hunt",
     description: "Cole o Hunting Analyser e salve a hunt por usuario.",
     icon: Swords,
-  },
-  {
-    href: "/registros",
-    title: "Registros",
-    description: "Anote hunts, bosses soltos, conquistas e metas.",
-    icon: ScrollText,
   },
   {
     href: "/bosses",
@@ -80,14 +74,14 @@ export default function DashboardPage() {
           <span className="eyebrow">Ferramenta simples e funcional</span>
           <h1>ClosedBoss</h1>
           <p>
-            Um painel para transformar o fluxo bruto do bot em telas: registros,
+            Um painel para transformar o fluxo bruto do bot em telas:
             hunts por usuario, bosses, duos, parser de loot e estatisticas.
           </p>
         </div>
       </section>
 
       <section className="statGrid">
-        <StatCard icon={BarChart3} label="Registros" value={stats.totalFeats} />
+        <StatCard icon={BarChart3} label="Atividades" value={stats.totalFeats} />
         <StatCard icon={Crown} label="Bosses" value={stats.bosses} />
         <StatCard icon={Swords} label="Hunts registradas" value={stats.registeredHunts} />
         <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
@@ -144,7 +138,7 @@ export default function DashboardPage() {
           <div className="sectionTitle">
             <div>
               <span className="eyebrow">Ultimos</span>
-              <h2>Registros recentes</h2>
+              <h2>Atividades recentes</h2>
             </div>
             <Trophy size={22} />
           </div>
