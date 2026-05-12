@@ -459,6 +459,46 @@ select:focus {
   padding: 12px;
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(4, 6, 12, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.lootModal {
+  width: min(760px, 100%);
+  max-height: min(88vh, 860px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
+  padding: 18px;
+}
+
+.modalPreview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 12px;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 10px;
+}
+
+.modalActions .secondaryButton {
+  width: auto;
+  margin-top: 0;
+}
+
 .errorNotice {
   border: 1px solid rgba(226, 93, 79, 0.32);
   border-radius: 8px;
@@ -1304,6 +1344,10 @@ h3 {
 
   .adminHuntActions .submitButton {
     width: 100%;
+  }
+
+  .modalActions {
+    grid-template-columns: 1fr;
   }
 
   .toolbar {
