@@ -846,6 +846,41 @@ textarea {
   gap: 12px;
 }
 
+.adminHuntList {
+  display: grid;
+  gap: 14px;
+}
+
+.adminHuntCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 14px;
+}
+
+.adminHuntForm {
+  display: grid;
+  gap: 12px;
+}
+
+.adminHuntFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 170px;
+  gap: 10px;
+}
+
+.adminHuntActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminHuntActions .submitButton {
+  min-width: 190px;
+  padding-inline: 14px;
+}
+
 .adminInlineForm {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1151,6 +1186,7 @@ h3 {
   .statsColumns,
   .duoGrid,
   .adminInlineForm,
+  .adminHuntFields,
   .adminRow,
   .compactAdminRow {
     grid-template-columns: 1fr;
@@ -1231,6 +1267,15 @@ h3 {
 
   .rowActions button {
     flex: 1;
+  }
+
+  .adminHuntActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminHuntActions .submitButton {
+    width: 100%;
   }
 
   .toolbar {

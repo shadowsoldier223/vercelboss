@@ -33,6 +33,7 @@ export default function AdminPage() {
     resetDuo,
     updateDuo,
     updateFeat,
+    updateHunt,
     updateUser,
   } = useAppData();
   const [tab, setTab] = useState<AdminTab>("registros");
@@ -88,6 +89,21 @@ export default function AdminPage() {
     setNewPassword("");
     setNewRole("user");
     setMessage("Usuario criado.");
+  }
+
+  function submitHuntEdit(event: FormEvent<HTMLFormElement>, huntId: string) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    updateHunt(huntId, {
+      title: String(formData.get("title") ?? ""),
+      character: String(formData.get("character") ?? ""),
+      date: String(formData.get("date") ?? today()),
+      notes: String(formData.get("notes") ?? ""),
+      rawText: String(formData.get("rawText") ?? ""),
+    });
+    setMessage("Hunt atualizada.");
   }
 
   if (!currentUser || !isAdmin) {
@@ -240,19 +256,60 @@ export default function AdminPage() {
         ) : null}
 
         {tab === "hunts" ? (
-          <div className="adminList">
+          <div className="adminHuntList">
             {data.hunts.map((hunt) => (
-              <article className="adminRow compactAdminRow" key={hunt.id}>
-                <div className="adminRowTitle">
-                  <Swords size={17} />
-                  <strong>{hunt.title}</strong>
-                </div>
-                <span>{`${hunt.character} / ${formatDate(hunt.date)} / ${hunt.userName}`}</span>
-                <span>{`Balance ${formatSignedNumber(hunt.balance)} / XP/h ${formatNumber(hunt.experienceHour)}`}</span>
-                <button type="button" className="secondaryButton" onClick={() => removeHunt(hunt.id)}>
-                  <Trash2 size={16} />
-                  Remover
-                </button>
+              <article className="adminHuntCard" key={hunt.id}>
+                <form className="adminHuntForm" onSubmit={(event) => submitHuntEdit(event, hunt.id)}>
+                  <div className="recordTop">
+                    <div className="adminRowTitle">
+                      <Swords size={17} />
+                      <strong>{hunt.title}</strong>
+                    </div>
+                    <button type="button" className="iconButton" onClick={() => removeHunt(hunt.id)} title="Remover">
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+
+                  <div className="adminHuntFields">
+                    <label>
+                      Nome da hunt
+                      <input name="title" defaultValue={hunt.title} />
+                    </label>
+                    <label>
+                      Personagem
+                      <input name="character" defaultValue={hunt.character} />
+                    </label>
+                    <label>
+                      Data
+                      <input name="date" type="date" defaultValue={hunt.date} />
+                    </label>
+                  </div>
+
+                  <div className="huntMetrics">
+                    <span>Usuario <strong>{hunt.userName}</strong></span>
+                    <span>Balance <strong>{formatSignedNumber(hunt.balance)}</strong></span>
+                    <span>XP/h <strong>{formatNumber(hunt.experienceHour)}</strong></span>
+                    <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
+                  </div>
+
+                  <label>
+                    Notas
+                    <textarea name="notes" defaultValue={hunt.notes} />
+                  </label>
+
+                  <details className="rawDetails">
+                    <summary>Editar Hunting Analyser original</summary>
+                    <textarea name="rawText" className="largeTextarea" defaultValue={hunt.rawText} />
+                  </details>
+
+                  <div className="adminHuntActions">
+                    <p className="mutedText">{`Criada em ${formatDate(hunt.createdAt)}`}</p>
+                    <button type="submit" className="submitButton">
+                      <Save size={18} />
+                      Salvar alteracoes
+                    </button>
+                  </div>
+                </form>
               </article>
             ))}
             {!data.hunts.length ? <p className="mutedText">Ainda nao tem hunts salvas.</p> : null}

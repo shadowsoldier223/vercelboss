@@ -8,6 +8,7 @@ import type { AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootDrop, Use
 
 type FeatInput = Omit<Feat, "id">;
 type HuntInput = Omit<HuntSession, "id" | "userId" | "userName" | "createdAt">;
+type HuntPatch = Partial<Pick<HuntSession, "title" | "character" | "date" | "notes" | "rawText">>;
 type UserInput = Omit<AppUser, "id">;
 const sessionEventName = "closedboss-session-change";
 
@@ -402,6 +403,30 @@ export function useAppData() {
     }));
   }
 
+  function updateHunt(id: string, patch: HuntPatch) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      hunts: current.hunts.map((hunt) => {
+        if (hunt.id !== id) return hunt;
+
+        const rawText = patch.rawText ?? hunt.rawText;
+        const parsed = patch.rawText === undefined ? {} : parseHuntingAnalyser(rawText);
+
+        return {
+          ...hunt,
+          ...patch,
+          ...parsed,
+          rawText,
+          title: patch.title !== undefined ? patch.title.trim() || "Hunt registrada" : hunt.title,
+          character: patch.character !== undefined ? patch.character.trim() || hunt.userName : hunt.character,
+          notes: patch.notes !== undefined ? patch.notes.trim() : hunt.notes,
+        };
+      }),
+    }));
+  }
+
   function addUser(input: UserInput) {
     if (!isAdmin || !input.username.trim() || !input.password.trim()) return false;
 
@@ -470,6 +495,7 @@ export function useAppData() {
     undoLastLoot,
     saveHuntSession,
     removeHunt,
+    updateHunt,
     addUser,
     updateUser,
     removeUser,
