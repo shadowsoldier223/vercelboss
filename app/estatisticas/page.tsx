@@ -1,12 +1,36 @@
 "use client";
 
-import { BarChart3, Crown, Gem, Swords, Trophy } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, Crown, Gem, Shield, Swords, Trophy } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { formatSignedNumber } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 export default function EstatisticasPage() {
-  const { stats } = useAppData();
+  const { currentUser, hasLoaded, stats } = useAppData();
+
+  if (!hasLoaded) {
+    return (
+      <section className="loginPrompt">
+        <span className="eyebrow">ClosedBoss</span>
+        <h1>Carregando acesso</h1>
+      </section>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="loginPrompt">
+        <Shield size={30} />
+        <span className="eyebrow">Estatisticas</span>
+        <h1>Entre para ver os dados</h1>
+        <p>As informacoes do painel ficam disponiveis apenas depois do login.</p>
+        <Link href="/login" className="submitButton">
+          Entrar
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <>

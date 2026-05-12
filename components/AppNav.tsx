@@ -38,19 +38,21 @@ export function AppNav() {
         </div>
       </Link>
 
-      <nav className="topnav" aria-label="Navegacao principal">
-        {[...navItems, ...(isAdmin ? [adminNavItem] : [])].map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
+      {currentUser ? (
+        <nav className="topnav" aria-label="Navegacao principal">
+          {[...navItems, ...(isAdmin ? [adminNavItem] : [])].map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href;
 
-          return (
-            <Link href={item.href} className={active ? "active" : ""} key={item.href}>
-              <Icon size={16} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+            return (
+              <Link href={item.href} className={active ? "active" : ""} key={item.href}>
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
 
       <div className="accountBox">
         {currentUser ? (

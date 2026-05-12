@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BarChart3, Crown, Gem, ScrollText, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { LoginPanel } from "@/components/LoginPanel";
 import { RecordCard } from "@/components/RecordCard";
 import { StatCard } from "@/components/StatCard";
 import { formatRemainingTime, isCooldownActive } from "@/lib/format";
@@ -42,10 +43,23 @@ const tools = [
 ];
 
 export default function DashboardPage() {
-  const { data, stats } = useAppData();
+  const { currentUser, data, hasLoaded, stats } = useAppData();
   const recentFeats = data.feats.slice(0, 4);
   const cooldownDuos = data.duos.filter((duo) => isCooldownActive(duo.cooldownUntil));
   const readyDuos = data.duos.length - cooldownDuos.length;
+
+  if (!hasLoaded) {
+    return (
+      <section className="loginPrompt">
+        <span className="eyebrow">ClosedBoss</span>
+        <h1>Carregando acesso</h1>
+      </section>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPanel />;
+  }
 
   return (
     <>
