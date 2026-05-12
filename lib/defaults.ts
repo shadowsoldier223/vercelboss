@@ -1,4 +1,4 @@
-import type { AppData, AppUser, Duo, Feat } from "./types";
+import type { AppData, AppUser, Duo } from "./types";
 import { lootBosses } from "./loot";
 
 export const storageKey = "closedboss-state";
@@ -10,33 +10,6 @@ export const duoCooldownMs = 20 * 60 * 60 * 1000;
 export function today() {
   return new Date().toISOString().slice(0, 10);
 }
-
-export const starterFeats: Feat[] = [
-  {
-    id: "sample-1",
-    type: "Boss",
-    title: "Necrolune",
-    character: "Eligos",
-    world: "Rubinot",
-    date: today(),
-    place: "Reward chest",
-    loot: "crystal coins, nocturnia coin, silver token",
-    notes: "Exemplo baseado no fluxo do bot: boss, dupla, loot e cooldown.",
-    difficulty: 4,
-  },
-  {
-    id: "sample-2",
-    type: "Hunt",
-    title: "Soulwar duo",
-    character: "Meu Paladin",
-    world: "Gentebra",
-    date: today(),
-    place: "Ebb and Flow",
-    loot: "Profit alto",
-    notes: "Use registros para hunts, quests e metas que nao precisam de parser.",
-    difficulty: 3,
-  },
-];
 
 export const starterDuos: Duo[] = [
   { id: "duo-1", left: "Wanius Zack", right: "Magic Max", status: null, markedAt: null, cooldownUntil: null },
@@ -57,24 +30,10 @@ export const starterUsers: AppUser[] = [
 ];
 
 export const defaultData: AppData = {
-  feats: starterFeats,
+  feats: [],
   duos: starterDuos,
   drops: [],
   users: starterUsers,
   hunts: [],
   lootBosses,
 };
-
-export function createEmptyFeat(type: Feat["type"] = "Boss"): Omit<Feat, "id"> {
-  return {
-    type,
-    title: "",
-    character: "",
-    world: "",
-    date: today(),
-    place: "",
-    loot: "",
-    notes: "",
-    difficulty: 3,
-  };
-}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppNav } from "@/components/AppNav";
+import { AppDataProvider } from "@/lib/useAppData";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,10 +16,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <main className="appShell">
-          <AppNav />
-          {children}
-        </main>
+        <AppDataProvider>
+          <main className="appShell">
+            <AppNav />
+            {children}
+          </main>
+        </AppDataProvider>
       </body>
     </html>
   );

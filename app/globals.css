@@ -10,7 +10,6 @@
   --muted-strong: #cbd5e1;
   --amber: #f3a11f;
   --amber-2: #ffd166;
-  --green: #33b981;
   --red: #e25d4f;
   --blue: #5a9ad6;
   --ink: #0a0c12;
@@ -29,13 +28,31 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, #10131c 0%, var(--bg) 280px),
+    linear-gradient(180deg, #141620 0%, var(--bg) 280px),
     var(--bg);
   color: var(--text);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   letter-spacing: 0;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(243, 161, 31, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226, 93, 79, 0.03) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, black, transparent 72%);
+}
+
+::selection {
+  background: rgba(243, 161, 31, 0.32);
+  color: white;
 }
 
 button,
@@ -46,6 +63,19 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 a {
@@ -64,6 +94,8 @@ p {
   width: min(1220px, calc(100% - 32px));
   margin: 0 auto;
   padding: 22px 0 56px;
+  position: relative;
+  z-index: 1;
 }
 
 .topbar {
@@ -74,12 +106,25 @@ p {
   gap: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(15, 17, 26, 0.78);
+  background:
+    linear-gradient(180deg, rgba(25, 29, 41, 0.92), rgba(15, 17, 26, 0.84)),
+    rgba(15, 17, 26, 0.78);
   padding: 10px 12px;
   position: sticky;
   top: 14px;
   z-index: 5;
   backdrop-filter: blur(16px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(226, 93, 79, 0.56), rgba(243, 161, 31, 0.5), transparent);
 }
 
 .brand,
@@ -115,7 +160,10 @@ p {
   border-radius: 8px;
   overflow: hidden;
   background: #020101;
-  box-shadow: 0 0 22px rgba(226, 93, 79, 0.18);
+  border-color: rgba(226, 93, 79, 0.36);
+  box-shadow:
+    0 0 22px rgba(226, 93, 79, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .brandLogo {
@@ -162,7 +210,7 @@ p {
 .topnav a:hover,
 .topnav a.active {
   border-color: var(--line);
-  background: var(--surface);
+  background: linear-gradient(180deg, rgba(31, 36, 51, 0.92), var(--surface));
   color: var(--amber-2);
 }
 
@@ -202,6 +250,7 @@ p {
 .navIconButton:hover {
   border-color: var(--amber);
   color: var(--amber-2);
+  box-shadow: 0 0 0 3px rgba(243, 161, 31, 0.08);
 }
 
 .heroPanel {
@@ -546,22 +595,6 @@ select:focus {
   margin-top: 8px;
 }
 
-.credentialsBox {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-3);
-  margin-top: 14px;
-  padding: 12px;
-  display: grid;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.credentialsBox strong {
-  color: var(--amber);
-}
-
 .readonlyPanel {
   display: grid;
   gap: 10px;
@@ -586,15 +619,6 @@ select:focus {
   font-size: 0.82rem;
 }
 
-.intro {
-  max-width: 760px;
-  margin: 58px auto 34px;
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  text-align: center;
-}
-
 .introIcon {
   width: 64px;
   height: 64px;
@@ -614,13 +638,6 @@ h1 {
   line-height: 0.98;
 }
 
-.intro p {
-  max-width: 690px;
-  color: var(--muted);
-  font-size: 1.04rem;
-  line-height: 1.65;
-}
-
 .toolGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -632,11 +649,12 @@ h1 {
 .panel,
 .recordCard,
 .stat,
-.toolbar,
-.featurePreview {
+.toolbar {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface);
+  background:
+    linear-gradient(180deg, rgba(25, 29, 41, 0.96), rgba(18, 21, 31, 0.98)),
+    var(--surface);
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
 }
 
@@ -654,11 +672,12 @@ h1 {
     box-shadow 180ms ease;
 }
 
-.toolCard:hover,
-.toolCard.selected {
+.toolCard:hover {
   border-color: rgba(243, 161, 31, 0.72);
   transform: translateY(-2px);
-  box-shadow: 0 20px 54px rgba(243, 161, 31, 0.1);
+  box-shadow:
+    0 20px 54px rgba(243, 161, 31, 0.1),
+    0 0 0 1px rgba(243, 161, 31, 0.1) inset;
 }
 
 .toolTop {
@@ -698,20 +717,6 @@ h1 {
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
-}
-
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(312px, 390px) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.leftRail {
-  display: grid;
-  gap: 14px;
-  position: sticky;
-  top: 96px;
 }
 
 .panel {
@@ -771,11 +776,6 @@ button:disabled,
 select:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-input[type="range"] {
-  accent-color: var(--amber);
-  padding: 11px 0;
 }
 
 textarea {
@@ -993,15 +993,6 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-.segmented,
-.filterGroup {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.segmented button,
-.filterGroup button,
 .iconButton {
   border: 1px solid var(--line);
   background: var(--surface-3);
@@ -1009,72 +1000,21 @@ textarea {
   border-radius: 6px;
 }
 
-.segmented button {
-  min-height: 42px;
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 9px 10px;
-}
-
-.segmented button.active,
-.filterGroup button.active {
-  background: var(--amber);
-  color: var(--ink);
-  border-color: var(--amber);
-}
-
 .submitButton {
   justify-content: center;
   min-height: 46px;
   border: 0;
   border-radius: 6px;
-  background: var(--red);
+  background: linear-gradient(180deg, #ef6658, var(--red));
   color: white;
   font-weight: 900;
+  box-shadow: 0 12px 28px rgba(226, 93, 79, 0.2);
 }
 
-.featurePreview {
-  min-height: 210px;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.featureImage {
-  object-fit: cover;
-}
-
-.featureShade {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    linear-gradient(0deg, rgba(15, 17, 26, 0.94), rgba(15, 17, 26, 0.22)),
-    linear-gradient(90deg, rgba(15, 17, 26, 0.74), rgba(15, 17, 26, 0.1));
-}
-
-.featureText {
-  position: absolute;
-  z-index: 2;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
-  display: grid;
-  gap: 6px;
-}
-
-.featureText span {
-  color: var(--amber);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.featureText strong {
-  font-size: 1.15rem;
+.submitButton:hover {
+  background: linear-gradient(180deg, #ff7467, #e45e50);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(226, 93, 79, 0.28);
 }
 
 .recordsArea {
@@ -1092,7 +1032,9 @@ textarea {
   min-height: 78px;
   padding: 14px;
   color: var(--amber);
-  background: var(--surface-2);
+  background:
+    linear-gradient(135deg, rgba(243, 161, 31, 0.08), transparent 46%),
+    var(--surface-2);
 }
 
 .stat div {
@@ -1137,12 +1079,6 @@ textarea {
   background: transparent;
 }
 
-.filterGroup button {
-  min-height: 38px;
-  padding: 8px 12px;
-  font-weight: 800;
-}
-
 .sectionTitle {
   margin: 8px 0 0;
   color: var(--muted-strong);
@@ -1166,6 +1102,11 @@ textarea {
 .recordCard:hover {
   border-color: rgba(243, 161, 31, 0.52);
   transform: translateY(-1px);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(243, 161, 31, 0.72);
+  outline-offset: 3px;
 }
 
 .recordTop,
@@ -1227,28 +1168,11 @@ h3 {
   font-size: 0.92rem;
 }
 
-.difficulty {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 5px;
-}
-
-.difficulty span {
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.16);
-}
-
-.difficulty .filled {
-  background: var(--green);
-}
-
 @media (max-width: 1100px) {
   .toolGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .workspace,
   .pageGrid,
   .dashboardGrid,
   .statsColumns,
@@ -1258,11 +1182,6 @@ h3 {
   .adminRow,
   .compactAdminRow {
     grid-template-columns: 1fr;
-  }
-
-  .leftRail {
-    position: static;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr);
   }
 }
 
@@ -1309,12 +1228,7 @@ h3 {
     padding: 24px;
   }
 
-  .intro {
-    margin: 34px auto 24px;
-  }
-
   .toolGrid,
-  .leftRail,
   .fieldGrid,
   .recordList,
   .statGrid,
@@ -1359,7 +1273,4 @@ h3 {
     min-width: 0;
   }
 
-  .segmented button span {
-    display: none;
-  }
 }

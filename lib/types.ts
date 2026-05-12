@@ -38,7 +38,6 @@ export type Feat = {
   place: string;
   loot: string;
   notes: string;
-  difficulty: number;
 };
 
 export type Duo = {

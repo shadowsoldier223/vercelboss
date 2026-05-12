@@ -8,10 +8,10 @@ import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
 import type { LootBoss, UserRole } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
-type AdminTab = "registros" | "bosses" | "duos" | "hunts" | "usuarios";
+type AdminTab = "atividades" | "bosses" | "duos" | "hunts" | "usuarios";
 
 const tabs: { key: AdminTab; label: string }[] = [
-  { key: "registros", label: "Registros" },
+  { key: "atividades", label: "Atividades" },
   { key: "bosses", label: "Bosses" },
   { key: "duos", label: "Duos" },
   { key: "hunts", label: "Hunts" },
@@ -38,7 +38,7 @@ export default function AdminPage() {
     updateLootBoss,
     updateUser,
   } = useAppData();
-  const [tab, setTab] = useState<AdminTab>("registros");
+  const [tab, setTab] = useState<AdminTab>("atividades");
   const [bossTitle, setBossTitle] = useState("");
   const [bossMode, setBossMode] = useState<LootBoss["mode"]>("solo");
   const [duoLeft, setDuoLeft] = useState("");
@@ -119,7 +119,7 @@ export default function AdminPage() {
       <section className="pageHeader">
         <span className="eyebrow">Admin</span>
         <h1>Controle do site</h1>
-        <p>Use as abas para alterar registros, bosses, duos, hunts e usuarios.</p>
+        <p>Use as abas para alterar atividades, bosses, duos, hunts e usuarios.</p>
       </section>
 
       <section className="panel adminPanel">
@@ -138,7 +138,7 @@ export default function AdminPage() {
 
         {message ? <p className="notice">{message}</p> : null}
 
-        {tab === "registros" ? (
+        {tab === "atividades" ? (
           <div className="adminList">
             {data.feats.map((feat) => (
               <article className="adminRow" key={feat.id}>

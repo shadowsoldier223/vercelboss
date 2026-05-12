@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { hasCustomLocalData, makeId, normalizeAppData } from "./data";
 import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
 import { getLootBoss, parseLootPaste } from "./loot";
@@ -13,43 +14,6 @@ type UserInput = Omit<AppUser, "id">;
 type LootBossInput = Pick<LootBoss, "label" | "mode">;
 const sessionEventName = "closedboss-session-change";
 
-function makeId(prefix: string) {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function normalizeHunt(hunt: Partial<HuntSession>): HuntSession {
-  const rawText = hunt.rawText ?? "";
-  const parsed = rawText.trim() ? parseHuntingAnalyser(rawText) : null;
-
-  return {
-    id: hunt.id ?? makeId("hunt"),
-    userId: hunt.userId ?? "",
-    userName: hunt.userName ?? "admin",
-    title: hunt.title ?? "Hunt registrada",
-    character: hunt.character ?? "",
-    date: hunt.date ?? new Date().toISOString().slice(0, 10),
-    duration: parsed?.duration ?? hunt.duration ?? "",
-    loot: parsed?.loot ?? hunt.loot ?? 0,
-    supplies: parsed?.supplies ?? hunt.supplies ?? 0,
-    balance: parsed?.balance ?? hunt.balance ?? 0,
-    damage: parsed?.damage ?? hunt.damage ?? 0,
-    damageHour: parsed?.damageHour ?? hunt.damageHour ?? 0,
-    healing: parsed?.healing ?? hunt.healing ?? 0,
-    healingHour: parsed?.healingHour ?? hunt.healingHour ?? 0,
-    experience: parsed?.experience ?? hunt.experience ?? 0,
-    experienceHour: parsed?.experienceHour ?? hunt.experienceHour ?? 0,
-    rawExperience: parsed?.rawExperience ?? hunt.rawExperience ?? 0,
-    rawExperienceHour: parsed?.rawExperienceHour ?? hunt.rawExperienceHour ?? 0,
-    rawText,
-    notes: hunt.notes ?? "",
-    createdAt: hunt.createdAt ?? new Date().toISOString(),
-  };
-}
-
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -60,34 +24,23 @@ function slugify(value: string) {
     .slice(0, 48) || "boss";
 }
 
-function normalizeData(data: Partial<AppData> | null): AppData {
-  return {
-    feats: Array.isArray(data?.feats) ? data.feats : defaultData.feats,
-    duos: Array.isArray(data?.duos) ? data.duos : defaultData.duos,
-    drops: Array.isArray(data?.drops) ? data.drops : [],
-    users: Array.isArray(data?.users) && data.users.length ? data.users : defaultData.users,
-    hunts: Array.isArray(data?.hunts) ? data.hunts.map(normalizeHunt) : [],
-    lootBosses: Array.isArray(data?.lootBosses) ? data.lootBosses : defaultData.lootBosses,
-  };
-}
-
 function readStoredData(): AppData {
   const stored = window.localStorage.getItem(storageKey);
 
   if (stored) {
-    return normalizeData(JSON.parse(stored) as Partial<AppData>);
+    return normalizeAppData(JSON.parse(stored) as Partial<AppData>);
   }
 
   const previousStored = window.localStorage.getItem(previousStorageKey);
 
   if (previousStored) {
-    return normalizeData(JSON.parse(previousStored) as Partial<AppData>);
+    return normalizeAppData(JSON.parse(previousStored) as Partial<AppData>);
   }
 
   const oldFeats = window.localStorage.getItem(oldStorageKey);
 
   if (oldFeats) {
-    return normalizeData({
+    return normalizeAppData({
       ...defaultData,
       feats: JSON.parse(oldFeats) as Feat[],
     });
@@ -96,30 +49,114 @@ function readStoredData(): AppData {
   return defaultData;
 }
 
-export function useAppData() {
+function useAppDataState() {
   const [data, setData] = useState<AppData>(defaultData);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+  const [remoteSyncAllowed, setRemoteSyncAllowed] = useState(false);
 
   useEffect(() => {
-    try {
-      const storedData = readStoredData();
-      const storedSession = window.localStorage.getItem(sessionKey);
+    let cancelled = false;
 
-      setData(storedData);
-      setCurrentUser(storedData.users.find((user) => user.id === storedSession) ?? null);
-    } catch {
-      setData(defaultData);
+    async function loadData() {
+      try {
+        const localData = readStoredData();
+        let nextData = localData;
+
+        try {
+          const response = await fetch("/api/state", { cache: "no-store" });
+
+          if (response.ok) {
+            const payload = (await response.json()) as {
+              data?: Partial<AppData>;
+              initialized?: boolean;
+              remote?: boolean;
+            };
+            const hasRemoteStore = Boolean(payload.remote);
+
+            setRemoteEnabled(hasRemoteStore);
+            setRemoteSyncAllowed(Boolean(hasRemoteStore && payload.initialized));
+
+            if (!hasRemoteStore) {
+              nextData = localData;
+            } else if (payload.initialized === false && hasCustomLocalData(localData)) {
+              await fetch("/api/state", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(localData),
+              });
+              setRemoteSyncAllowed(true);
+              nextData = localData;
+            } else {
+              nextData = normalizeAppData(payload.data ?? null);
+            }
+          }
+        } catch {
+          setRemoteEnabled(false);
+        }
+
+        const storedSession = window.localStorage.getItem(sessionKey);
+
+        if (!cancelled) {
+          setData(nextData);
+          setCurrentUser(nextData.users.find((user) => user.id === storedSession) ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setData(defaultData);
+        }
+      }
+
+      if (!cancelled) {
+        setHasLoaded(true);
+      }
     }
 
-    setHasLoaded(true);
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (hasLoaded) {
+    if (!hasLoaded) return;
+
+    try {
       window.localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch {
+      return;
     }
   }, [data, hasLoaded]);
+
+  useEffect(() => {
+    if (!hasLoaded || !remoteEnabled || (!remoteSyncAllowed && !hasCustomLocalData(data))) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            setRemoteEnabled(false);
+            return;
+          }
+
+          setRemoteSyncAllowed(true);
+        })
+        .catch(() => setRemoteEnabled(false));
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [data, hasLoaded, remoteEnabled, remoteSyncAllowed]);
 
   useEffect(() => {
     if (!hasLoaded || !currentUser) return;
@@ -183,9 +220,6 @@ export function useAppData() {
 
     return {
       totalFeats: data.feats.length,
-      bosses: data.feats.filter((feat) => feat.type === "Boss").length,
-      hunts: data.feats.filter((feat) => feat.type === "Hunt").length,
-      achievements: data.feats.filter((feat) => feat.type === "Conquista").length,
       duos: data.duos.length,
       drops: data.drops.length,
       lootBosses: data.lootBosses.length,
@@ -214,15 +248,6 @@ export function useAppData() {
     setCurrentUser(null);
     window.localStorage.removeItem(sessionKey);
     window.dispatchEvent(new Event(sessionEventName));
-  }
-
-  function addFeat(input: FeatInput) {
-    if (!currentUser) return;
-
-    setData((current) => ({
-      ...current,
-      feats: [{ ...input, id: makeId("feat") }, ...current.feats],
-    }));
   }
 
   function removeFeat(id: string) {
@@ -432,7 +457,6 @@ export function useAppData() {
           place: boss.mode === "duo" ? "Duo boss" : "Solo boss",
           loot: lootSummary,
           notes: "Criado pelo parser de loot.",
-          difficulty: boss.mode === "duo" ? 4 : 3,
         },
         ...current.feats,
       ],
@@ -493,7 +517,6 @@ export function useAppData() {
           place: "",
           loot: result,
           notes: notes || `Sessao ${hunt.duration || "sem tempo informado"}.`,
-          difficulty: 3,
         },
         ...current.feats,
       ],
@@ -577,12 +600,6 @@ export function useAppData() {
     }));
   }
 
-  function clearAllLocalData() {
-    if (!isAdmin) return;
-
-    setData(defaultData);
-  }
-
   return {
     data,
     hasLoaded,
@@ -591,7 +608,6 @@ export function useAppData() {
     stats,
     login,
     logout,
-    addFeat,
     removeFeat,
     updateFeat,
     addDuo,
@@ -610,9 +626,27 @@ export function useAppData() {
     addUser,
     updateUser,
     removeUser,
-    clearAllLocalData,
   };
 }
 
-export type AppDataHook = ReturnType<typeof useAppData>;
+export type AppDataHook = ReturnType<typeof useAppDataState>;
+
+const AppDataContext = createContext<AppDataHook | null>(null);
+
+export function AppDataProvider({ children }: { children: ReactNode }) {
+  const value = useAppDataState();
+
+  return createElement(AppDataContext.Provider, { value }, children);
+}
+
+export function useAppData() {
+  const context = useContext(AppDataContext);
+
+  if (!context) {
+    throw new Error("useAppData precisa estar dentro de AppDataProvider.");
+  }
+
+  return context;
+}
+
 export type { AppUser, Duo, Feat, HuntSession, LootBoss, LootDrop, UserRole };
