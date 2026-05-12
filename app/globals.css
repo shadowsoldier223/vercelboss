@@ -395,6 +395,13 @@ select:focus {
   margin-right: 8px;
 }
 
+.inlineEdit {
+  width: min(100%, 360px);
+  border-color: var(--line-soft);
+  background: rgba(15, 17, 26, 0.58);
+  font-weight: 900;
+}
+
 .rowActions {
   display: flex;
   flex-wrap: wrap;
@@ -403,6 +410,7 @@ select:focus {
 }
 
 .rowActions button,
+.rowActions select,
 .secondaryButton {
   min-height: 34px;
   border: 1px solid var(--line);
@@ -417,9 +425,14 @@ select:focus {
 }
 
 .rowActions button:hover,
+.rowActions select:hover,
 .secondaryButton:hover {
   border-color: var(--amber);
   color: var(--amber-2);
+}
+
+.rowActions select {
+  width: auto;
 }
 
 .secondaryButton {
@@ -703,6 +716,12 @@ input:focus,
 textarea:focus {
   border-color: var(--amber);
   box-shadow: 0 0 0 3px rgba(243, 161, 31, 0.14);
+}
+
+button:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 input[type="range"] {

@@ -2,6 +2,25 @@ export type FeatType = "Boss" | "Hunt" | "Conquista";
 export type DuoStatus = "done" | "fail" | null;
 export type UserRole = "admin" | "user";
 
+export type LootDefinition = {
+  id: string;
+  item: string;
+  category: string;
+  aliases?: string[];
+};
+
+export type LootBoss = {
+  key: string;
+  label: string;
+  mode: "duo" | "solo";
+  drops: LootDefinition[];
+};
+
+export type ParsedDrop = {
+  drop: LootDefinition;
+  quantity: number;
+};
+
 export type AppUser = {
   id: string;
   username: string;
@@ -72,4 +91,5 @@ export type AppData = {
   drops: LootDrop[];
   users: AppUser[];
   hunts: HuntSession[];
+  lootBosses: LootBoss[];
 };

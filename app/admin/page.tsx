@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Crown, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users } from "lucide-react";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
-import type { UserRole } from "@/lib/types";
+import type { LootBoss, UserRole } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
 type AdminTab = "registros" | "bosses" | "duos" | "hunts" | "usuarios";
@@ -21,7 +21,7 @@ const tabs: { key: AdminTab; label: string }[] = [
 export default function AdminPage() {
   const {
     addDuo,
-    addFeat,
+    addLootBoss,
     addUser,
     currentUser,
     data,
@@ -29,16 +29,18 @@ export default function AdminPage() {
     removeDuo,
     removeFeat,
     removeHunt,
+    removeLootBoss,
     removeUser,
     resetDuo,
     updateDuo,
     updateFeat,
     updateHunt,
+    updateLootBoss,
     updateUser,
   } = useAppData();
   const [tab, setTab] = useState<AdminTab>("registros");
   const [bossTitle, setBossTitle] = useState("");
-  const [bossCharacter, setBossCharacter] = useState("");
+  const [bossMode, setBossMode] = useState<LootBoss["mode"]>("solo");
   const [duoLeft, setDuoLeft] = useState("");
   const [duoRight, setDuoRight] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -46,26 +48,18 @@ export default function AdminPage() {
   const [newRole, setNewRole] = useState<UserRole>("user");
   const [message, setMessage] = useState("");
 
-  const bosses = useMemo(() => data.feats.filter((feat) => feat.type === "Boss"), [data.feats]);
-
   function submitBoss(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!bossTitle.trim()) return;
+    const created = addLootBoss({ label: bossTitle, mode: bossMode });
 
-    addFeat({
-      type: "Boss",
-      title: bossTitle,
-      character: bossCharacter,
-      world: "",
-      date: today(),
-      place: "",
-      loot: "",
-      notes: "",
-      difficulty: 3,
-    });
+    if (!created) {
+      setMessage("Nao foi possivel criar esse boss.");
+      return;
+    }
+
     setBossTitle("");
-    setBossCharacter("");
-    setMessage("Boss adicionado.");
+    setBossMode("solo");
+    setMessage("Boss criado e disponivel na aba Loot.");
   }
 
   function submitDuo(event: FormEvent<HTMLFormElement>) {
@@ -179,33 +173,31 @@ export default function AdminPage() {
                 <input value={bossTitle} onChange={(event) => setBossTitle(event.target.value)} placeholder="Nome do boss" />
               </label>
               <label>
-                Personagem
-                <input
-                  value={bossCharacter}
-                  onChange={(event) => setBossCharacter(event.target.value)}
-                  placeholder="Quem matou"
-                />
+                Tipo
+                <select value={bossMode} onChange={(event) => setBossMode(event.target.value as LootBoss["mode"])}>
+                  <option value="solo">Solo</option>
+                  <option value="duo">Duo</option>
+                </select>
               </label>
               <button className="submitButton" type="submit">
                 <Plus size={18} />
-                Adicionar boss
+                Criar boss
               </button>
             </form>
 
             <div className="adminList">
-              {bosses.map((boss) => (
-                <article className="adminRow" key={boss.id}>
+              {data.lootBosses.map((boss) => (
+                <article className="adminRow compactAdminRow" key={boss.key}>
                   <div className="adminRowTitle">
                     <Crown size={17} />
-                    <strong>{boss.title}</strong>
+                    <strong>{boss.label}</strong>
                   </div>
-                  <input defaultValue={boss.title} onBlur={(event) => updateFeat(boss.id, { title: event.target.value })} />
-                  <input
-                    defaultValue={boss.character}
-                    onBlur={(event) => updateFeat(boss.id, { character: event.target.value })}
-                  />
-                  <input defaultValue={boss.loot} onBlur={(event) => updateFeat(boss.id, { loot: event.target.value })} />
-                  <button type="button" className="secondaryButton" onClick={() => removeFeat(boss.id)}>
+                  <input defaultValue={boss.label} onBlur={(event) => updateLootBoss(boss.key, { label: event.target.value })} />
+                  <select value={boss.mode} onChange={(event) => updateLootBoss(boss.key, { mode: event.target.value as LootBoss["mode"] })}>
+                    <option value="solo">Solo</option>
+                    <option value="duo">Duo</option>
+                  </select>
+                  <button type="button" className="secondaryButton" onClick={() => removeLootBoss(boss.key)}>
                     <Trash2 size={16} />
                     Remover
                   </button>

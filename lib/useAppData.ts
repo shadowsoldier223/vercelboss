@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
 import { getLootBoss, parseLootPaste } from "./loot";
-import type { AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootDrop, UserRole } from "./types";
+import type { AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootBoss, LootDrop, UserRole } from "./types";
 
 type FeatInput = Omit<Feat, "id">;
 type HuntInput = Omit<HuntSession, "id" | "userId" | "userName" | "createdAt">;
 type HuntPatch = Partial<Pick<HuntSession, "title" | "character" | "date" | "notes" | "rawText">>;
 type UserInput = Omit<AppUser, "id">;
+type LootBossInput = Pick<LootBoss, "label" | "mode">;
 const sessionEventName = "closedboss-session-change";
 
 function makeId(prefix: string) {
@@ -49,6 +50,16 @@ function normalizeHunt(hunt: Partial<HuntSession>): HuntSession {
   };
 }
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "boss";
+}
+
 function normalizeData(data: Partial<AppData> | null): AppData {
   return {
     feats: Array.isArray(data?.feats) ? data.feats : defaultData.feats,
@@ -56,6 +67,7 @@ function normalizeData(data: Partial<AppData> | null): AppData {
     drops: Array.isArray(data?.drops) ? data.drops : [],
     users: Array.isArray(data?.users) && data.users.length ? data.users : defaultData.users,
     hunts: Array.isArray(data?.hunts) ? data.hunts.map(normalizeHunt) : [],
+    lootBosses: Array.isArray(data?.lootBosses) ? data.lootBosses : defaultData.lootBosses,
   };
 }
 
@@ -176,6 +188,7 @@ export function useAppData() {
       achievements: data.feats.filter((feat) => feat.type === "Conquista").length,
       duos: data.duos.length,
       drops: data.drops.length,
+      lootBosses: data.lootBosses.length,
       registeredHunts: data.hunts.length,
       huntBalance: data.hunts.reduce((total, hunt) => total + hunt.balance, 0),
       itemTotals: Array.from(itemTotals.values()).sort((a, b) => b.quantity - a.quantity),
@@ -267,6 +280,68 @@ export function useAppData() {
     }));
   }
 
+  function addLootBoss(input: LootBossInput) {
+    if (!isAdmin || !input.label.trim()) return false;
+
+    const label = input.label.trim();
+    const baseKey = slugify(label);
+    const alreadyExists = data.lootBosses.some((boss) => boss.label.toLowerCase() === label.toLowerCase());
+
+    if (alreadyExists) return false;
+
+    setData((current) => {
+      const keys = new Set(current.lootBosses.map((boss) => boss.key));
+      let key = baseKey;
+      let index = 2;
+
+      while (keys.has(key)) {
+        key = `${baseKey}-${index}`;
+        index += 1;
+      }
+
+      return {
+        ...current,
+        lootBosses: [
+          ...current.lootBosses,
+          {
+            key,
+            label,
+            mode: input.mode,
+            drops: [],
+          },
+        ],
+      };
+    });
+
+    return true;
+  }
+
+  function updateLootBoss(key: string, patch: Partial<LootBossInput>) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      lootBosses: current.lootBosses.map((boss) =>
+        boss.key === key
+          ? {
+              ...boss,
+              ...patch,
+              label: patch.label !== undefined ? patch.label.trim() || boss.label : boss.label,
+            }
+          : boss,
+      ),
+    }));
+  }
+
+  function removeLootBoss(key: string) {
+    if (!isAdmin) return;
+
+    setData((current) => ({
+      ...current,
+      lootBosses: current.lootBosses.filter((boss) => boss.key !== key),
+    }));
+  }
+
   function markDuo(id: string, status: Exclude<DuoStatus, null>) {
     if (!isAdmin) return;
 
@@ -318,8 +393,12 @@ export function useAppData() {
   }) {
     if (!currentUser) return [];
 
-    const boss = getLootBoss(bossKey);
-    const parsedDrops = parseLootPaste(lootText, bossKey);
+    const bosses = data.lootBosses;
+    const boss = getLootBoss(bossKey, bosses);
+
+    if (!boss) return [];
+
+    const parsedDrops = parseLootPaste(lootText, bossKey, bosses);
 
     if (!player.trim() || !parsedDrops.length) {
       return [];
@@ -518,6 +597,9 @@ export function useAppData() {
     addDuo,
     removeDuo,
     updateDuo,
+    addLootBoss,
+    updateLootBoss,
+    removeLootBoss,
     markDuo,
     resetDuo,
     saveLootSession,
@@ -533,4 +615,4 @@ export function useAppData() {
 }
 
 export type AppDataHook = ReturnType<typeof useAppData>;
-export type { AppUser, Duo, Feat, HuntSession, LootDrop, UserRole };
+export type { AppUser, Duo, Feat, HuntSession, LootBoss, LootDrop, UserRole };

@@ -82,7 +82,7 @@ export default function DashboardPage() {
 
       <section className="statGrid">
         <StatCard icon={BarChart3} label="Atividades" value={stats.totalFeats} />
-        <StatCard icon={Crown} label="Bosses" value={stats.bosses} />
+        <StatCard icon={Crown} label="Bosses" value={stats.lootBosses} />
         <StatCard icon={Swords} label="Hunts registradas" value={stats.registeredHunts} />
         <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
       </section>

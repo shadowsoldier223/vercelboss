@@ -42,7 +42,7 @@ export default function EstatisticasPage() {
 
       <section className="statGrid">
         <StatCard icon={BarChart3} label="Registros" value={stats.totalFeats} />
-        <StatCard icon={Crown} label="Bosses" value={stats.bosses} />
+        <StatCard icon={Crown} label="Bosses" value={stats.lootBosses} />
         <StatCard icon={Swords} label="Hunts salvas" value={stats.registeredHunts} />
         <StatCard icon={Trophy} label="Balance hunts" value={formatSignedNumber(stats.huntBalance)} />
       </section>

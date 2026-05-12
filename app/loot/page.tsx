@@ -1,25 +1,43 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Gem, Plus, RotateCcw, Shield } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { today } from "@/lib/defaults";
-import { lootBosses, parseLootPaste } from "@/lib/loot";
+import { parseLootPaste } from "@/lib/loot";
 import { useAppData } from "@/lib/useAppData";
 
 export default function LootPage() {
-  const { currentUser, isAdmin, stats, saveLootSession, undoLastLoot } = useAppData();
-  const [bossKey, setBossKey] = useState(lootBosses[0].key);
+  const { currentUser, data, isAdmin, stats, saveLootSession, undoLastLoot } = useAppData();
+  const [bossKey, setBossKey] = useState("");
   const [player, setPlayer] = useState("");
   const [date, setDate] = useState(today());
   const [lootText, setLootText] = useState("");
   const [message, setMessage] = useState("");
 
-  const parsed = useMemo(() => parseLootPaste(lootText, bossKey), [lootText, bossKey]);
+  const lootBosses = data.lootBosses;
+  const parsed = useMemo(() => parseLootPaste(lootText, bossKey, lootBosses), [lootText, bossKey, lootBosses]);
+
+  useEffect(() => {
+    if (!lootBosses.length) {
+      setBossKey("");
+      return;
+    }
+
+    if (!bossKey || !lootBosses.some((boss) => boss.key === bossKey)) {
+      setBossKey(lootBosses[0].key);
+    }
+  }, [bossKey, lootBosses]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!bossKey) {
+      setMessage("Crie um boss na aba Bosses antes de salvar loot.");
+      return;
+    }
+
     const saved = saveLootSession({ bossKey, player, lootText, date });
 
     if (!saved.length) {
@@ -73,12 +91,15 @@ export default function LootPage() {
           <form className="entryForm" onSubmit={submit}>
             <label>
               Boss
-              <select value={bossKey} onChange={(event) => setBossKey(event.target.value)}>
+              <select value={bossKey} onChange={(event) => setBossKey(event.target.value)} disabled={!lootBosses.length}>
                 {lootBosses.map((boss) => (
                   <option value={boss.key} key={boss.key}>{boss.label}</option>
                 ))}
               </select>
             </label>
+            {!lootBosses.length ? (
+              <p className="mutedText">Nenhum boss cadastrado. Crie um boss na aba Bosses.</p>
+            ) : null}
 
             <div className="fieldGrid">
               <label>
@@ -100,7 +121,7 @@ export default function LootPage() {
               />
             </label>
 
-            <button className="submitButton" type="submit">
+            <button className="submitButton" type="submit" disabled={!lootBosses.length}>
               <Plus size={18} />
               Salvar loot
             </button>

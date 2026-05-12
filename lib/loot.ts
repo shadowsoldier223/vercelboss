@@ -1,21 +1,4 @@
-export type LootBoss = {
-  key: string;
-  label: string;
-  mode: "duo" | "solo";
-  drops: LootDefinition[];
-};
-
-export type LootDefinition = {
-  id: string;
-  item: string;
-  category: string;
-  aliases?: string[];
-};
-
-export type ParsedDrop = {
-  drop: LootDefinition;
-  quantity: number;
-};
+import type { LootBoss, LootDefinition, ParsedDrop } from "./types";
 
 function drop(id: string, item: string, category: string, aliases: string[] = []): LootDefinition {
   return { id, item, category, aliases };
@@ -119,8 +102,8 @@ export const lootBosses: LootBoss[] = [
   },
 ];
 
-export function getLootBoss(key: string) {
-  return lootBosses.find((boss) => boss.key === key) ?? lootBosses[0];
+export function getLootBoss(key: string, bosses: LootBoss[] = lootBosses) {
+  return bosses.find((boss) => boss.key === key) ?? bosses[0] ?? null;
 }
 
 function normalizeLootText(value: string) {
@@ -153,8 +136,8 @@ function getKnownDropByItem(itemName: string, drops: LootDefinition[]) {
   ) ?? null;
 }
 
-function getKnownLootDropByItem(itemName: string) {
-  for (const boss of lootBosses) {
+function getKnownLootDropByItem(itemName: string, bosses: LootBoss[]) {
+  for (const boss of bosses) {
     const knownDrop = getKnownDropByItem(itemName, boss.drops);
     if (knownDrop) return knownDrop;
   }
@@ -175,10 +158,10 @@ function toGenericDrop(itemName: string): LootDefinition {
   };
 }
 
-export function parseLootPaste(text: string, bossKey: string): ParsedDrop[] {
+export function parseLootPaste(text: string, bossKey: string, bosses: LootBoss[] = lootBosses): ParsedDrop[] {
   if (!text.trim()) return [];
 
-  const boss = getLootBoss(bossKey);
+  const boss = getLootBoss(bossKey, bosses);
   const marker = "available in your reward chest:";
   const lowerText = text.toLowerCase();
   const markerIndex = lowerText.indexOf(marker);
@@ -196,8 +179,8 @@ export function parseLootPaste(text: string, bossKey: string): ParsedDrop[] {
     const match = cleanedPart.match(/^(\d+)\s+(.+)$/);
     const quantity = match ? Number.parseInt(match[1], 10) : 1;
     const itemName = (match ? match[2] : cleanedPart).replace(/^(a|an)\s+/i, "");
-    const lootDrop = getKnownDropByItem(itemName, boss.drops) ??
-      getKnownLootDropByItem(itemName) ??
+    const lootDrop = getKnownDropByItem(itemName, boss?.drops ?? []) ??
+      getKnownLootDropByItem(itemName, bosses) ??
       toGenericDrop(itemName);
 
     if (!Number.isInteger(quantity) || quantity <= 0) continue;

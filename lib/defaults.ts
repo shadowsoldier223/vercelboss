@@ -1,4 +1,5 @@
 import type { AppData, AppUser, Duo, Feat } from "./types";
+import { lootBosses } from "./loot";
 
 export const storageKey = "closedboss-state";
 export const sessionKey = "closedboss-session";
@@ -61,6 +62,7 @@ export const defaultData: AppData = {
   drops: [],
   users: starterUsers,
   hunts: [],
+  lootBosses,
 };
 
 export function createEmptyFeat(type: Feat["type"] = "Boss"): Omit<Feat, "id"> {
