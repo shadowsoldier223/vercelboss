@@ -13,8 +13,9 @@ const navItems = [
   { href: "/duos", label: "Duos", icon: Users },
   { href: "/loot", label: "Loot", icon: Gem },
   { href: "/estatisticas", label: "Stats", icon: BarChart3 },
-  { href: "/admin", label: "Admin", icon: UserCog },
 ];
+
+const adminNavItem = { href: "/admin", label: "Admin", icon: UserCog };
 
 export function AppNav() {
   const pathname = usePathname();
@@ -38,7 +39,7 @@ export function AppNav() {
       </Link>
 
       <nav className="topnav" aria-label="Navegacao principal">
-        {navItems.map((item) => {
+        {[...navItems, ...(isAdmin ? [adminNavItem] : [])].map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
 
@@ -54,7 +55,7 @@ export function AppNav() {
       <div className="accountBox">
         {currentUser ? (
           <>
-            <span className="accountName">{currentUser.username}{isAdmin ? " admin" : ""}</span>
+            <span className="accountName">{currentUser.username}</span>
             <button type="button" className="navIconButton" onClick={handleLogout} title="Sair">
               <LogOut size={16} />
             </button>
