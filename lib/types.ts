@@ -59,6 +59,8 @@ export type HuntSession = {
   healingHour: number;
   experience: number;
   experienceHour: number;
+  rawExperience: number;
+  rawExperienceHour: number;
   rawText: string;
   notes: string;
   createdAt: string;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { Activity, Coins, HeartPulse, Plus, Swords, Trash2, Zap } from "lucide-react";
+import { Activity, Coins, Gauge, Plus, Swords, Trash2, Zap } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
@@ -73,10 +73,10 @@ export default function RegistrarHuntPage() {
       </section>
 
       <section className="statGrid">
-        <StatCard icon={Coins} label="Balance" value={formatSignedNumber(parsed.balance)} />
+        <StatCard icon={Coins} label="XP Gain" value={formatNumber(parsed.experience)} />
         <StatCard icon={Zap} label="XP/h" value={formatNumber(parsed.experienceHour)} />
-        <StatCard icon={Activity} label="Damage/h" value={formatNumber(parsed.damageHour)} />
-        <StatCard icon={HeartPulse} label="Healing/h" value={formatNumber(parsed.healingHour)} />
+        <StatCard icon={Activity} label="Raw XP Gain" value={formatNumber(parsed.rawExperience)} />
+        <StatCard icon={Gauge} label="Raw XP/h" value={formatNumber(parsed.rawExperienceHour)} />
       </section>
 
       <section className="pageGrid">
@@ -156,16 +156,16 @@ export default function RegistrarHuntPage() {
               <strong>{parsed.duration || "Nao informado"}</strong>
             </div>
             <div>
-              <span>Loot</span>
-              <strong>{formatNumber(parsed.loot)}</strong>
-            </div>
-            <div>
-              <span>Supplies</span>
-              <strong>{formatNumber(parsed.supplies)}</strong>
-            </div>
-            <div>
-              <span>XP total</span>
+              <span>XP Gain</span>
               <strong>{formatNumber(parsed.experience)}</strong>
+            </div>
+            <div>
+              <span>Raw XP Gain</span>
+              <strong>{formatNumber(parsed.rawExperience)}</strong>
+            </div>
+            <div>
+              <span>Raw XP/h</span>
+              <strong>{formatNumber(parsed.rawExperienceHour)}</strong>
             </div>
           </div>
 
@@ -192,8 +192,10 @@ export default function RegistrarHuntPage() {
                 </div>
                 <div className="huntMetrics">
                   <span>Balance <strong>{formatSignedNumber(hunt.balance)}</strong></span>
-                  <span>Loot <strong>{formatNumber(hunt.loot)}</strong></span>
+                  <span>XP Gain <strong>{formatNumber(hunt.experience)}</strong></span>
                   <span>XP/h <strong>{formatNumber(hunt.experienceHour)}</strong></span>
+                  <span>Raw XP Gain <strong>{formatNumber(hunt.rawExperience)}</strong></span>
+                  <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
                   <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
                 </div>
                 {hunt.notes ? <p>{hunt.notes}</p> : null}

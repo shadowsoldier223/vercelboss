@@ -288,7 +288,10 @@ export default function AdminPage() {
                   <div className="huntMetrics">
                     <span>Usuario <strong>{hunt.userName}</strong></span>
                     <span>Balance <strong>{formatSignedNumber(hunt.balance)}</strong></span>
+                    <span>XP Gain <strong>{formatNumber(hunt.experience)}</strong></span>
                     <span>XP/h <strong>{formatNumber(hunt.experienceHour)}</strong></span>
+                    <span>Raw XP Gain <strong>{formatNumber(hunt.rawExperience)}</strong></span>
+                    <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
                     <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
                   </div>
 
