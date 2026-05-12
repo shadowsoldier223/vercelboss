@@ -45,7 +45,7 @@ export default function DashboardPage() {
   if (!hasLoaded) {
     return (
       <section className="loginPrompt">
-        <span className="eyebrow">ClosedBoss</span>
+        <span className="eyebrow">Closed</span>
         <h1>Carregando acesso</h1>
       </section>
     );
@@ -72,7 +72,7 @@ export default function DashboardPage() {
             <Sparkles size={30} />
           </span>
           <span className="eyebrow">Ferramenta simples e funcional</span>
-          <h1>ClosedBoss</h1>
+          <h1>Closed</h1>
           <p>
             Um painel para transformar o fluxo bruto do bot em telas:
             hunts por usuario, bosses, duos, parser de loot e estatisticas.

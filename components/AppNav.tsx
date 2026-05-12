@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Shield, Swords, UserCog, Users } from "lucide-react";
+import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, Users } from "lucide-react";
 import { useAppData } from "@/lib/useAppData";
 
 const navItems = [
@@ -29,10 +30,10 @@ export function AppNav() {
     <header className="topbar">
       <Link href="/" className="brand">
         <span className="brandMark">
-          <Shield size={22} />
+          <Image src="/closed-mark.svg" alt="" width={42} height={42} className="brandLogo" priority />
         </span>
         <div>
-          <strong>ClosedBoss</strong>
+          <strong>Closed</strong>
           <span>painel Tibia</span>
         </div>
       </Link>

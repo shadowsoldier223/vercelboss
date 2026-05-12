@@ -36,7 +36,7 @@ export function LoginPanel({ redirectTo = "/" }: { redirectTo?: string }) {
         <div className="panelHeader">
           <div>
             <span className="eyebrow">Acesso</span>
-            <h1>Entrar no ClosedBoss</h1>
+            <h1>Entrar no Closed</h1>
           </div>
           <Shield size={24} />
         </div>

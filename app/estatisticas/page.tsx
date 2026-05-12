@@ -12,7 +12,7 @@ export default function EstatisticasPage() {
   if (!hasLoaded) {
     return (
       <section className="loginPrompt">
-        <span className="eyebrow">ClosedBoss</span>
+        <span className="eyebrow">Closed</span>
         <h1>Carregando acesso</h1>
       </section>
     );
