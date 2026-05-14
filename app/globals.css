@@ -792,15 +792,23 @@ textarea {
   border-radius: 8px;
   background: rgba(15, 17, 26, 0.42);
   color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 12px;
   padding: 12px;
 }
 
+.imageUploader:focus-visible {
+  border-color: var(--amber);
+}
+
+.imageTools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .imageInputButton {
-  width: auto;
+  width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -814,12 +822,22 @@ textarea {
   font-weight: 900;
 }
 
+.imageInputButton:hover {
+  border-color: var(--amber);
+  color: white;
+}
+
 .imageInputButton input {
   position: absolute;
   inline-size: 1px;
   block-size: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+.imageCounter {
+  justify-self: end;
+  font-size: 0.82rem;
 }
 
 .imageGrid {
@@ -1307,6 +1325,7 @@ h3 {
 
   .toolGrid,
   .fieldGrid,
+  .imageTools,
   .imageGrid,
   .savedImages,
   .recordList,

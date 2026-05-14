@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { Activity, Coins, Gauge, ImagePlus, Plus, Swords, Trash2, X, Zap } from "lucide-react";
+import { ChangeEvent, ClipboardEvent, FormEvent, useMemo, useState } from "react";
+import { Activity, Camera, Clipboard as ClipboardIcon, Coins, Gauge, ImagePlus, Plus, Swords, Trash2, X, Zap } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
@@ -13,6 +13,11 @@ import { useAppData } from "@/lib/useAppData";
 
 const maxHuntImages = 4;
 const maxImageSize = 1200;
+const imageQuality = 0.78;
+
+type ClipboardWithRead = Navigator["clipboard"] & {
+  read?: () => Promise<ClipboardItem[]>;
+};
 
 function makeImageId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -58,7 +63,7 @@ async function compressHuntImage(file: File): Promise<HuntImage> {
   return {
     id: makeImageId(),
     name: file.name || "Imagem da hunt",
-    src: canvas.toDataURL("image/jpeg", 0.78),
+    src: canvas.toDataURL("image/jpeg", imageQuality),
   };
 }
 
@@ -71,6 +76,7 @@ export default function RegistrarHuntPage() {
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<HuntImage[]>([]);
   const [message, setMessage] = useState("");
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const parsed = useMemo(() => parseHuntingAnalyser(rawText), [rawText]);
   const visibleHunts = useMemo(() => {
@@ -80,22 +86,134 @@ export default function RegistrarHuntPage() {
     return data.hunts.filter((hunt) => hunt.userId === currentUser.id);
   }, [currentUser, data.hunts, isAdmin]);
 
-  async function addImages(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+  function appendHuntImages(preparedImages: HuntImage[], requestedCount: number) {
     const slots = maxHuntImages - images.length;
 
-    event.target.value = "";
+    if (slots <= 0) {
+      setMessage(`O limite por hunt e ${maxHuntImages} imagens.`);
+      return;
+    }
 
-    if (!files.length || slots <= 0) {
+    const acceptedImages = preparedImages.slice(0, slots);
+
+    setImages((current) => [...current, ...acceptedImages].slice(0, maxHuntImages));
+    setMessage(requestedCount > slots ? `Salvei ${slots} imagens. O limite por hunt e ${maxHuntImages}.` : "");
+  }
+
+  async function addImageFiles(files: File[], emptyMessage: string) {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+
+    if (!imageFiles.length) {
+      setMessage(emptyMessage);
       return;
     }
 
     try {
-      const preparedImages = await Promise.all(files.slice(0, slots).map(compressHuntImage));
-      setImages((current) => [...current, ...preparedImages].slice(0, maxHuntImages));
-      setMessage(files.length > slots ? `Salvei ${slots} imagens. O limite por hunt e ${maxHuntImages}.` : "");
+      const preparedImages = await Promise.all(imageFiles.map(compressHuntImage));
+      appendHuntImages(preparedImages, imageFiles.length);
     } catch {
       setMessage("Nao foi possivel carregar uma das imagens.");
+    }
+  }
+
+  function addImages(event: ChangeEvent<HTMLInputElement>) {
+    void addImageFiles(Array.from(event.target.files ?? []), "Nenhuma imagem reconhecida.");
+    event.target.value = "";
+  }
+
+  async function pastePrintFromClipboard() {
+    const clipboard = navigator.clipboard as ClipboardWithRead | undefined;
+
+    if (!clipboard?.read) {
+      setMessage("Cole o print direto na area de imagens.");
+      return;
+    }
+
+    try {
+      const items = await clipboard.read();
+      const files: File[] = [];
+
+      for (const item of items) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+
+        if (!imageType) continue;
+
+        const blob = await item.getType(imageType);
+        files.push(new File([blob], "print-colado.png", { type: imageType }));
+      }
+
+      await addImageFiles(files, "Nenhum print encontrado na area de transferencia.");
+    } catch {
+      setMessage("Nao consegui ler a area de transferencia. Use Ctrl+V na area de imagens.");
+    }
+  }
+
+  function pastePrint(event: ClipboardEvent<HTMLDivElement>) {
+    const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+
+    if (!files.length) return;
+
+    event.preventDefault();
+    void addImageFiles(files, "Nenhum print encontrado na area de transferencia.");
+  }
+
+  async function captureScreenPrint() {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setMessage("Captura de tela indisponivel neste navegador.");
+      return;
+    }
+
+    if (images.length >= maxHuntImages) {
+      setMessage(`O limite por hunt e ${maxHuntImages} imagens.`);
+      return;
+    }
+
+    setIsCapturing(true);
+    let stream: MediaStream | null = null;
+
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error("Nao foi possivel capturar a tela."));
+      });
+      await video.play();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      const scale = Math.min(1, maxImageSize / Math.max(video.videoWidth, video.videoHeight));
+      const width = Math.max(1, Math.round(video.videoWidth * scale));
+      const height = Math.max(1, Math.round(video.videoHeight * scale));
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Nao foi possivel preparar o print.");
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(video, 0, 0, width, height);
+      appendHuntImages(
+        [
+          {
+            id: makeImageId(),
+            name: "Print da hunt",
+            src: canvas.toDataURL("image/jpeg", imageQuality),
+          },
+        ],
+        1,
+      );
+    } catch {
+      setMessage("Captura cancelada ou indisponivel.");
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+      setIsCapturing(false);
     }
   }
 
@@ -212,13 +330,23 @@ export default function RegistrarHuntPage() {
               />
             </label>
 
-            <div className="imageUploader">
-              <label className="imageInputButton">
-                <ImagePlus size={18} />
-                Adicionar imagens
-                <input type="file" accept="image/*" multiple onChange={addImages} />
-              </label>
-              <span>{images.length}/{maxHuntImages} imagens</span>
+            <div className="imageUploader" onPaste={pastePrint} tabIndex={0}>
+              <div className="imageTools">
+                <label className="imageInputButton">
+                  <ImagePlus size={18} />
+                  Imagem salva
+                  <input type="file" accept="image/*" multiple onChange={addImages} />
+                </label>
+                <button className="imageInputButton" type="button" onClick={pastePrintFromClipboard}>
+                  <ClipboardIcon size={18} />
+                  Colar print
+                </button>
+                <button className="imageInputButton" type="button" onClick={captureScreenPrint} disabled={isCapturing}>
+                  <Camera size={18} />
+                  {isCapturing ? "Capturando" : "Capturar tela"}
+                </button>
+              </div>
+              <span className="imageCounter">{images.length}/{maxHuntImages} imagens</span>
             </div>
 
             {images.length ? (
