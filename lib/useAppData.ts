@@ -495,6 +495,7 @@ function useAppDataState() {
       title,
       character,
       notes,
+      images: input.images ?? [],
       createdAt: new Date().toISOString(),
     };
     const result = hunt.balance

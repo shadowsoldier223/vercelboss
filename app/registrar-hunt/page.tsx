@@ -1,13 +1,66 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
-import { Activity, Coins, Gauge, Plus, Swords, Trash2, Zap } from "lucide-react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { Activity, Coins, Gauge, ImagePlus, Plus, Swords, Trash2, X, Zap } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
 import { parseHuntingAnalyser } from "@/lib/hunts";
+import type { HuntImage } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
+
+const maxHuntImages = 4;
+const maxImageSize = 1200;
+
+function makeImageId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `hunt-image-${crypto.randomUUID()}`;
+  }
+
+  return `hunt-image-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function readImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new window.Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Imagem invalida."));
+    };
+    image.src = url;
+  });
+}
+
+async function compressHuntImage(file: File): Promise<HuntImage> {
+  const image = await readImage(file);
+  const scale = Math.min(1, maxImageSize / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Nao foi possivel preparar a imagem.");
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+  context.drawImage(image, 0, 0, width, height);
+
+  return {
+    id: makeImageId(),
+    name: file.name || "Imagem da hunt",
+    src: canvas.toDataURL("image/jpeg", 0.78),
+  };
+}
 
 export default function RegistrarHuntPage() {
   const { currentUser, data, isAdmin, removeHunt, saveHuntSession } = useAppData();
@@ -16,6 +69,7 @@ export default function RegistrarHuntPage() {
   const [date, setDate] = useState(today());
   const [rawText, setRawText] = useState("");
   const [notes, setNotes] = useState("");
+  const [images, setImages] = useState<HuntImage[]>([]);
   const [message, setMessage] = useState("");
 
   const parsed = useMemo(() => parseHuntingAnalyser(rawText), [rawText]);
@@ -25,6 +79,29 @@ export default function RegistrarHuntPage() {
 
     return data.hunts.filter((hunt) => hunt.userId === currentUser.id);
   }, [currentUser, data.hunts, isAdmin]);
+
+  async function addImages(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+    const slots = maxHuntImages - images.length;
+
+    event.target.value = "";
+
+    if (!files.length || slots <= 0) {
+      return;
+    }
+
+    try {
+      const preparedImages = await Promise.all(files.slice(0, slots).map(compressHuntImage));
+      setImages((current) => [...current, ...preparedImages].slice(0, maxHuntImages));
+      setMessage(files.length > slots ? `Salvei ${slots} imagens. O limite por hunt e ${maxHuntImages}.` : "");
+    } catch {
+      setMessage("Nao foi possivel carregar uma das imagens.");
+    }
+  }
+
+  function removeImage(id: string) {
+    setImages((current) => current.filter((image) => image.id !== id));
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,6 +113,7 @@ export default function RegistrarHuntPage() {
       date,
       rawText,
       notes,
+      images,
     });
 
     if (!saved) {
@@ -47,6 +125,7 @@ export default function RegistrarHuntPage() {
     setCharacter("");
     setRawText("");
     setNotes("");
+    setImages([]);
     setMessage("Hunt registrada no historico.");
   }
 
@@ -133,6 +212,28 @@ export default function RegistrarHuntPage() {
               />
             </label>
 
+            <div className="imageUploader">
+              <label className="imageInputButton">
+                <ImagePlus size={18} />
+                Adicionar imagens
+                <input type="file" accept="image/*" multiple onChange={addImages} />
+              </label>
+              <span>{images.length}/{maxHuntImages} imagens</span>
+            </div>
+
+            {images.length ? (
+              <div className="imageGrid">
+                {images.map((image) => (
+                  <figure className="imageThumb" key={image.id}>
+                    <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
+                    <button type="button" onClick={() => removeImage(image.id)} title="Remover imagem">
+                      <X size={15} />
+                    </button>
+                  </figure>
+                ))}
+              </div>
+            ) : null}
+
             <button className="submitButton" type="submit">
               <Plus size={18} />
               Salvar hunt
@@ -198,6 +299,15 @@ export default function RegistrarHuntPage() {
                   <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
                   <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
                 </div>
+                {hunt.images?.length ? (
+                  <div className="imageGrid savedImages">
+                    {hunt.images.map((image) => (
+                      <figure className="imageThumb" key={image.id}>
+                        <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
+                      </figure>
+                    ))}
+                  </div>
+                ) : null}
                 {hunt.notes ? <p>{hunt.notes}</p> : null}
                 <details className="rawDetails">
                   <summary>Texto original</summary>

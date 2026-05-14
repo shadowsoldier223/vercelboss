@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { Crown, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users } from "lucide-react";
@@ -286,6 +287,16 @@ export default function AdminPage() {
                     <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
                     <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
                   </div>
+
+                  {hunt.images.length ? (
+                    <div className="imageGrid savedImages">
+                      {hunt.images.map((image) => (
+                        <figure className="imageThumb" key={image.id}>
+                          <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
+                        </figure>
+                      ))}
+                    </div>
+                  ) : null}
 
                   <label>
                     Notas

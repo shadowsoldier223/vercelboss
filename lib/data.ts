@@ -35,6 +35,15 @@ function normalizeHunt(hunt: Partial<HuntSession>): HuntSession {
     rawExperienceHour: parsed?.rawExperienceHour ?? hunt.rawExperienceHour ?? 0,
     rawText,
     notes: hunt.notes ?? "",
+    images: Array.isArray(hunt.images)
+      ? hunt.images
+          .filter((image) => image && typeof image.src === "string" && image.src.startsWith("data:image/"))
+          .map((image) => ({
+            id: image.id ?? makeId("hunt-image"),
+            name: image.name ?? "Imagem da hunt",
+            src: image.src,
+          }))
+      : [],
     createdAt: hunt.createdAt ?? new Date().toISOString(),
   };
 }

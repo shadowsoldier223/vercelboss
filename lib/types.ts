@@ -60,6 +60,12 @@ export type LootDrop = {
   createdAt: string;
 };
 
+export type HuntImage = {
+  id: string;
+  name: string;
+  src: string;
+};
+
 export type HuntSession = {
   id: string;
   userId: string;
@@ -81,6 +87,7 @@ export type HuntSession = {
   rawExperienceHour: number;
   rawText: string;
   notes: string;
+  images: HuntImage[];
   createdAt: string;
 };
 
