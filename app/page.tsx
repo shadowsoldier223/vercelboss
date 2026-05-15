@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BarChart3, Crown, Gem, Sparkles, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Camera, Crown, Gem, Sparkles, Swords, Trophy, Users } from "lucide-react";
 import { LoginPanel } from "@/components/LoginPanel";
 import { RecordCard } from "@/components/RecordCard";
 import { StatCard } from "@/components/StatCard";
-import { formatRemainingTime, isCooldownActive } from "@/lib/format";
+import { formatDate, formatNumber, formatRemainingTime, formatSignedNumber, isCooldownActive } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 const tools = [
@@ -37,10 +37,27 @@ const tools = [
 ];
 
 export default function DashboardPage() {
-  const { currentUser, data, hasLoaded, stats } = useAppData();
+  const { currentUser, data, hasLoaded, isAdmin, stats } = useAppData();
   const recentFeats = data.feats.slice(0, 4);
   const cooldownDuos = data.duos.filter((duo) => isCooldownActive(duo.cooldownUntil));
   const readyDuos = data.duos.length - cooldownDuos.length;
+  const visibleHunts = currentUser
+    ? isAdmin
+      ? data.hunts
+      : data.hunts.filter((hunt) => hunt.userId === currentUser.id)
+    : [];
+  const latestHunt = visibleHunts[0];
+  const bestXpHunt = visibleHunts.reduce((best, hunt) => (hunt.experienceHour > (best?.experienceHour ?? 0) ? hunt : best), visibleHunts[0]);
+  const visibleBalance = visibleHunts.reduce((total, hunt) => total + hunt.balance, 0);
+  const totalImages = visibleHunts.reduce((total, hunt) => total + hunt.images.length, 0);
+  const topTags = Array.from(
+    visibleHunts
+      .flatMap((hunt) => hunt.tags)
+      .reduce((map, tag) => map.set(tag, (map.get(tag) ?? 0) + 1), new Map<string, number>())
+      .entries(),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
 
   if (!hasLoaded) {
     return (
@@ -81,9 +98,9 @@ export default function DashboardPage() {
       </section>
 
       <section className="statGrid">
-        <StatCard icon={BarChart3} label="Atividades" value={stats.totalFeats} />
-        <StatCard icon={Crown} label="Bosses" value={stats.lootBosses} />
-        <StatCard icon={Swords} label="Hunts registradas" value={stats.registeredHunts} />
+        <StatCard icon={BarChart3} label="Balance hunts" value={formatSignedNumber(visibleBalance)} />
+        <StatCard icon={Swords} label="Hunts registradas" value={visibleHunts.length} />
+        <StatCard icon={Camera} label="Prints salvos" value={totalImages} />
         <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
       </section>
 
@@ -114,6 +131,39 @@ export default function DashboardPage() {
         <section className="sectionBlock">
           <div className="sectionTitle">
             <div>
+              <span className="eyebrow">Resumo</span>
+              <h2>Hunts</h2>
+            </div>
+            <Swords size={22} />
+          </div>
+          <div className="compactList">
+            {latestHunt ? (
+              <div className="summaryLine">
+                <strong>{latestHunt.title}</strong>
+                <span>{`${latestHunt.character} / ${formatDate(latestHunt.date)} / ${formatSignedNumber(latestHunt.balance)}`}</span>
+              </div>
+            ) : (
+              <p className="mutedText">Nenhuma hunt registrada ainda.</p>
+            )}
+            {bestXpHunt ? (
+              <div className="listRow">
+                <span>Melhor XP/h</span>
+                <strong>{formatNumber(bestXpHunt.experienceHour)}</strong>
+              </div>
+            ) : null}
+            {topTags.length ? (
+              <div className="tagList">
+                {topTags.map(([tag, total]) => (
+                  <span key={tag}>{tag} / {total}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="sectionBlock">
+          <div className="sectionTitle">
+            <div>
               <span className="eyebrow">Duos</span>
               <h2>Cooldowns</h2>
             </div>
@@ -133,7 +183,9 @@ export default function DashboardPage() {
             {!cooldownDuos.length ? <p className="mutedText">Nenhum duo em cooldown.</p> : null}
           </div>
         </section>
+      </section>
 
+      <section className="dashboardGrid">
         <section className="sectionBlock">
           <div className="sectionTitle">
             <div>

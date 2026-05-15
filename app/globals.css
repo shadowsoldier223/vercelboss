@@ -343,12 +343,17 @@ select:focus {
 }
 
 .dashboardGrid,
-.statsColumns {
+.statsColumns,
+.profileGrid {
   display: grid;
   grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.25fr);
   gap: 18px;
   margin-top: 18px;
   align-items: start;
+}
+
+.profileGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .sectionBlock {
@@ -921,10 +926,21 @@ textarea {
   margin-top: 14px;
 }
 
+.huntFilters {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) minmax(145px, 0.8fr) minmax(145px, 0.8fr) 150px 130px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .huntCard {
   padding: 14px;
   display: grid;
   gap: 12px;
+}
+
+.compactHunt {
+  gap: 8px;
 }
 
 .huntMetrics {
@@ -947,6 +963,22 @@ textarea {
 .huntMetrics strong {
   color: var(--text);
   overflow-wrap: anywhere;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tagList span {
+  border: 1px solid rgba(243, 161, 31, 0.22);
+  border-radius: 999px;
+  background: rgba(243, 161, 31, 0.1);
+  color: var(--amber-2);
+  padding: 5px 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .rawDetails {
@@ -1271,7 +1303,9 @@ h3 {
   .pageGrid,
   .dashboardGrid,
   .statsColumns,
+  .profileGrid,
   .duoGrid,
+  .huntFilters,
   .adminInlineForm,
   .adminHuntFields,
   .adminRow,

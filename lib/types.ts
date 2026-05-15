@@ -64,6 +64,7 @@ export type HuntImage = {
   id: string;
   name: string;
   src: string;
+  pathname?: string;
 };
 
 export type HuntSession = {
@@ -88,6 +89,7 @@ export type HuntSession = {
   rawText: string;
   notes: string;
   images: HuntImage[];
+  tags: string[];
   createdAt: string;
 };
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, Users } from "lucide-react";
+import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, UserRound, Users } from "lucide-react";
 import { useAppData } from "@/lib/useAppData";
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { href: "/duos", label: "Duos", icon: Users },
   { href: "/loot", label: "Loot", icon: Gem },
   { href: "/estatisticas", label: "Stats", icon: BarChart3 },
+  { href: "/perfil", label: "Perfil", icon: UserRound },
 ];
 
 const adminNavItem = { href: "/admin", label: "Admin", icon: UserCog };

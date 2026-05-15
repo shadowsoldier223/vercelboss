@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { Crown, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users } from "lucide-react";
+import { ChangeEvent, FormEvent, useState } from "react";
+import { Crown, ImagePlus, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users, X } from "lucide-react";
+import { compressHuntImageFile, deleteHuntImages, uploadHuntImageFiles } from "@/lib/clientImages";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
-import type { LootBoss, UserRole } from "@/lib/types";
+import type { HuntImage, LootBoss, UserRole } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
 type AdminTab = "atividades" | "bosses" | "duos" | "hunts" | "usuarios";
@@ -48,6 +49,7 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<UserRole>("user");
   const [message, setMessage] = useState("");
+  const [imageUploadHuntId, setImageUploadHuntId] = useState("");
 
   function submitBoss(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,8 +99,40 @@ export default function AdminPage() {
       date: String(formData.get("date") ?? today()),
       notes: String(formData.get("notes") ?? ""),
       rawText: String(formData.get("rawText") ?? ""),
+      tags: String(formData.get("tags") ?? "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
     });
     setMessage("Hunt atualizada.");
+  }
+
+  async function addHuntImages(event: ChangeEvent<HTMLInputElement>, huntId: string, currentImages: HuntImage[]) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
+
+    event.target.value = "";
+
+    if (!files.length) return;
+
+    setImageUploadHuntId(huntId);
+
+    try {
+      const preparedFiles = await Promise.all(files.slice(0, 4).map(compressHuntImageFile));
+      const uploadedImages = await uploadHuntImageFiles(preparedFiles);
+
+      updateHunt(huntId, { images: [...currentImages, ...uploadedImages].slice(0, 8) });
+      setMessage("Imagens da hunt atualizadas.");
+    } catch {
+      setMessage("Nao foi possivel enviar as imagens.");
+    } finally {
+      setImageUploadHuntId("");
+    }
+  }
+
+  function removeHuntImage(huntId: string, currentImages: HuntImage[], image: HuntImage) {
+    void deleteHuntImages([image]);
+    updateHunt(huntId, { images: currentImages.filter((entry) => entry.id !== image.id) });
+    setMessage("Imagem removida da hunt.");
   }
 
   if (!currentUser || !isAdmin) {
@@ -293,10 +327,35 @@ export default function AdminPage() {
                       {hunt.images.map((image) => (
                         <figure className="imageThumb" key={image.id}>
                           <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
+                          <button
+                            type="button"
+                            onClick={() => removeHuntImage(hunt.id, hunt.images, image)}
+                            title="Remover imagem"
+                          >
+                            <X size={15} />
+                          </button>
                         </figure>
                       ))}
                     </div>
                   ) : null}
+
+                  <div className="imageUploader">
+                    <label className="imageInputButton">
+                      <ImagePlus size={18} />
+                      {imageUploadHuntId === hunt.id ? "Enviando" : "Adicionar prints"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(event) => addHuntImages(event, hunt.id, hunt.images)}
+                      />
+                    </label>
+                  </div>
+
+                  <label>
+                    Tags
+                    <input name="tags" defaultValue={hunt.tags.join(", ")} placeholder="solo, profit, library" />
+                  </label>
 
                   <label>
                     Notas

@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { hasCustomLocalData, makeId, normalizeAppData } from "./data";
+import { deleteHuntImages } from "./clientImages";
+import { hasCustomLocalData, makeId, normalizeAppData, normalizeTags } from "./data";
 import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
 import { getLootBoss, parseLootPaste } from "./loot";
@@ -9,7 +10,7 @@ import type { AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootBoss, Loo
 
 type FeatInput = Omit<Feat, "id">;
 type HuntInput = Omit<HuntSession, "id" | "userId" | "userName" | "createdAt">;
-type HuntPatch = Partial<Pick<HuntSession, "title" | "character" | "date" | "notes" | "rawText">>;
+type HuntPatch = Partial<Pick<HuntSession, "title" | "character" | "date" | "notes" | "rawText" | "images" | "tags">>;
 type UserInput = Omit<AppUser, "id">;
 type LootBossInput = Pick<LootBoss, "label" | "mode">;
 const sessionEventName = "closedboss-session-change";
@@ -496,6 +497,7 @@ function useAppDataState() {
       character,
       notes,
       images: input.images ?? [],
+      tags: normalizeTags(input.tags),
       createdAt: new Date().toISOString(),
     };
     const result = hunt.balance
@@ -529,6 +531,12 @@ function useAppDataState() {
   function removeHunt(id: string) {
     if (!isAdmin) return;
 
+    const hunt = data.hunts.find((entry) => entry.id === id);
+
+    if (hunt) {
+      void deleteHuntImages(hunt.images);
+    }
+
     setData((current) => ({
       ...current,
       hunts: current.hunts.filter((hunt) => hunt.id !== id),
@@ -554,6 +562,8 @@ function useAppDataState() {
           title: patch.title !== undefined ? patch.title.trim() || "Hunt registrada" : hunt.title,
           character: patch.character !== undefined ? patch.character.trim() || hunt.userName : hunt.character,
           notes: patch.notes !== undefined ? patch.notes.trim() : hunt.notes,
+          tags: patch.tags !== undefined ? normalizeTags(patch.tags) : hunt.tags,
+          images: patch.images !== undefined ? patch.images : hunt.images,
         };
       }),
     }));

@@ -1,6 +1,6 @@
 import { defaultData } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
-import type { AppData, HuntSession } from "./types";
+import type { AppData, HuntImage, HuntSession } from "./types";
 
 export function makeId(prefix: string) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -35,17 +35,38 @@ function normalizeHunt(hunt: Partial<HuntSession>): HuntSession {
     rawExperienceHour: parsed?.rawExperienceHour ?? hunt.rawExperienceHour ?? 0,
     rawText,
     notes: hunt.notes ?? "",
-    images: Array.isArray(hunt.images)
-      ? hunt.images
-          .filter((image) => image && typeof image.src === "string" && image.src.startsWith("data:image/"))
-          .map((image) => ({
-            id: image.id ?? makeId("hunt-image"),
-            name: image.name ?? "Imagem da hunt",
-            src: image.src,
-          }))
-      : [],
+    images: normalizeHuntImages(hunt.images),
+    tags: normalizeTags(hunt.tags),
     createdAt: hunt.createdAt ?? new Date().toISOString(),
   };
+}
+
+export function normalizeTags(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return [];
+
+  return Array.from(
+    new Set(
+      tags
+        .map((tag) => String(tag).trim().toLowerCase())
+        .filter(Boolean)
+        .map((tag) => tag.slice(0, 28)),
+    ),
+  ).slice(0, 8);
+}
+
+function normalizeHuntImages(images: unknown): HuntImage[] {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .filter((image): image is Partial<HuntImage> => Boolean(image) && typeof image === "object")
+    .filter((image) => typeof image.src === "string" && Boolean(image.src))
+    .map((image) => ({
+      id: image.id ?? makeId("hunt-image"),
+      name: image.name ?? "Imagem da hunt",
+      src: image.src ?? "",
+      pathname: image.pathname,
+    }))
+    .filter((image) => image.src.startsWith("data:image/") || image.src.startsWith("/api/hunt-images/") || image.src.startsWith("https://"));
 }
 
 export function normalizeAppData(data: Partial<AppData> | null): AppData {
