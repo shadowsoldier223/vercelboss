@@ -22,8 +22,8 @@ export function AppNav() {
   const pathname = usePathname();
   const { currentUser, isAdmin, logout } = useAppData();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     window.location.href = "/login";
   }
 

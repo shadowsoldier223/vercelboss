@@ -13,7 +13,9 @@ import {
   Filter,
   Gauge,
   ImagePlus,
+  Pencil,
   Plus,
+  Save,
   Swords,
   Trash2,
   X,
@@ -45,7 +47,7 @@ function parseTags(value: string) {
 }
 
 export default function RegistrarHuntPage() {
-  const { currentUser, data, isAdmin, removeHunt, saveHuntSession } = useAppData();
+  const { currentUser, data, isAdmin, removeHunt, saveHuntSession, updateHunt } = useAppData();
   const [title, setTitle] = useState("");
   const [character, setCharacter] = useState("");
   const [date, setDate] = useState(today());
@@ -61,6 +63,7 @@ export default function RegistrarHuntPage() {
   const [tagFilter, setTagFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [expandedHunts, setExpandedHunts] = useState<string[]>([]);
+  const [editingHuntId, setEditingHuntId] = useState("");
 
   const parsed = useMemo(() => parseHuntingAnalyser(rawText), [rawText]);
   const baseHunts = useMemo(() => {
@@ -246,13 +249,30 @@ export default function RegistrarHuntPage() {
     setMessage("Hunt registrada no historico.");
   }
 
+  function submitHuntEdit(event: FormEvent<HTMLFormElement>, huntId: string) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    updateHunt(huntId, {
+      title: String(formData.get("title") ?? ""),
+      character: String(formData.get("character") ?? ""),
+      date: String(formData.get("date") ?? today()),
+      notes: String(formData.get("notes") ?? ""),
+      rawText: String(formData.get("rawText") ?? ""),
+      tags: parseTags(String(formData.get("tags") ?? "")),
+    });
+    setEditingHuntId("");
+    setMessage("Hunt atualizada.");
+  }
+
   if (!currentUser) {
     return (
       <section className="loginPrompt">
         <Swords size={30} />
         <span className="eyebrow">Registrar Hunt</span>
         <h1>Entre para salvar suas hunts</h1>
-        <p>Cada usuario ve o proprio historico. Administradores conseguem ver e remover registros.</p>
+        <p>Cada usuario ve o proprio historico e consegue ajustar as proprias hunts.</p>
         <Link href="/login" className="submitButton">
           Entrar
         </Link>
@@ -449,58 +469,117 @@ export default function RegistrarHuntPage() {
               <article className="huntCard" key={hunt.id}>
                 {(() => {
                   const expanded = expandedHunts.includes(hunt.id);
+                  const editing = editingHuntId === hunt.id;
+                  const canEdit = Boolean(currentUser && (isAdmin || hunt.userId === currentUser.id));
 
                   return (
                     <>
-                <div className="recordTop">
-                  <div>
-                    <strong>{hunt.title}</strong>
-                    <p>{`${hunt.character} / ${formatDate(hunt.date)} / ${hunt.userName}`}</p>
-                  </div>
-                  <div className="rowActions">
-                    <button type="button" title={expanded ? "Recolher" : "Expandir"} onClick={() => toggleHunt(hunt.id)}>
-                      {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-                    {isAdmin ? (
-                      <button type="button" onClick={() => removeHunt(hunt.id)} title="Remover">
-                        <Trash2 size={17} />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                {hunt.tags.length ? (
-                  <div className="tagList">
-                    {hunt.tags.map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="huntMetrics">
-                  <span>Balance <strong>{formatSignedNumber(hunt.balance)}</strong></span>
-                  <span>XP Gain <strong>{formatNumber(hunt.experience)}</strong></span>
-                  <span>XP/h <strong>{formatNumber(hunt.experienceHour)}</strong></span>
-                  <span>Raw XP Gain <strong>{formatNumber(hunt.rawExperience)}</strong></span>
-                  <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
-                  <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
-                </div>
-                {expanded ? (
-                  <>
-                    {hunt.images?.length ? (
-                      <div className="imageGrid savedImages">
-                        {hunt.images.map((image) => (
-                          <figure className="imageThumb" key={image.id}>
-                            <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
-                          </figure>
-                        ))}
+                      <div className="recordTop">
+                        <div>
+                          <strong>{hunt.title}</strong>
+                          <p>{`${hunt.character} / ${formatDate(hunt.date)} / ${hunt.userName}`}</p>
+                        </div>
+                        <div className="rowActions">
+                          <button type="button" title={expanded ? "Recolher" : "Expandir"} onClick={() => toggleHunt(hunt.id)}>
+                            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingHuntId(editing ? "" : hunt.id);
+
+                                if (!expanded) {
+                                  toggleHunt(hunt.id);
+                                }
+                              }}
+                              title="Editar"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          ) : null}
+                          {canEdit ? (
+                            <button type="button" onClick={() => removeHunt(hunt.id)} title="Remover">
+                              <Trash2 size={17} />
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    ) : null}
-                    {hunt.notes ? <p>{hunt.notes}</p> : null}
-                    <details className="rawDetails">
-                      <summary>Texto original</summary>
-                      <pre>{hunt.rawText}</pre>
-                    </details>
-                  </>
-                ) : null}
+                      {hunt.tags.length ? (
+                        <div className="tagList">
+                          {hunt.tags.map((tag) => (
+                            <span key={tag}>{tag}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="huntMetrics">
+                        <span>Balance <strong>{formatSignedNumber(hunt.balance)}</strong></span>
+                        <span>XP Gain <strong>{formatNumber(hunt.experience)}</strong></span>
+                        <span>XP/h <strong>{formatNumber(hunt.experienceHour)}</strong></span>
+                        <span>Raw XP Gain <strong>{formatNumber(hunt.rawExperience)}</strong></span>
+                        <span>Raw XP/h <strong>{formatNumber(hunt.rawExperienceHour)}</strong></span>
+                        <span>Tempo <strong>{hunt.duration || "-"}</strong></span>
+                      </div>
+                      {expanded ? (
+                        editing ? (
+                          <form className="inlineHuntForm" onSubmit={(event) => submitHuntEdit(event, hunt.id)}>
+                            <div className="fieldGrid">
+                              <label>
+                                Nome da hunt
+                                <input name="title" defaultValue={hunt.title} />
+                              </label>
+                              <label>
+                                Personagem
+                                <input name="character" defaultValue={hunt.character} />
+                              </label>
+                            </div>
+                            <div className="fieldGrid">
+                              <label>
+                                Data
+                                <input name="date" type="date" defaultValue={hunt.date} />
+                              </label>
+                              <label>
+                                Tags
+                                <input name="tags" defaultValue={hunt.tags.join(", ")} />
+                              </label>
+                            </div>
+                            <label>
+                              Notas
+                              <textarea name="notes" defaultValue={hunt.notes} />
+                            </label>
+                            <label>
+                              Hunting Analyser
+                              <textarea name="rawText" className="largeTextarea" defaultValue={hunt.rawText} />
+                            </label>
+                            <div className="inlineHuntActions">
+                              <button type="button" className="secondaryButton" onClick={() => setEditingHuntId("")}>
+                                Cancelar
+                              </button>
+                              <button type="submit" className="submitButton">
+                                <Save size={18} />
+                                Salvar alteracoes
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            {hunt.images?.length ? (
+                              <div className="imageGrid savedImages">
+                                {hunt.images.map((image) => (
+                                  <figure className="imageThumb" key={image.id}>
+                                    <Image src={image.src} alt={image.name} width={320} height={180} unoptimized />
+                                  </figure>
+                                ))}
+                              </div>
+                            ) : null}
+                            {hunt.notes ? <p>{hunt.notes}</p> : null}
+                            <details className="rawDetails">
+                              <summary>Texto original</summary>
+                              <pre>{hunt.rawText}</pre>
+                            </details>
+                          </>
+                        )
+                      ) : null}
                     </>
                   );
                 })()}

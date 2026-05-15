@@ -18,9 +18,9 @@ export function LoginPanel({ redirectTo = "/" }: { redirectTo?: string }) {
     }
   }, [currentUser, redirectTo, router]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ok = login(username, password);
+    const ok = await login(username, password);
 
     if (!ok) {
       setMessage("Usuario ou senha incorretos.");

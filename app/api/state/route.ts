@@ -1,55 +1,17 @@
-import { get, put } from "@vercel/blob";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { normalizeAppData } from "@/lib/data";
 import { defaultData } from "@/lib/defaults";
+import { readAppData, sanitizeData, sessionCookieName, verifySessionToken, writePublicAppData } from "@/lib/serverData";
 import type { AppData } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const statePath = "closedboss/app-data.json";
-
-function hasBlobToken() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
-async function readState() {
-  if (!hasBlobToken()) {
-    return { data: defaultData, initialized: false, remote: false };
-  }
-
-  const result = await get(statePath, { access: "private", useCache: false });
-
-  if (!result || result.statusCode !== 200 || !result.stream) {
-    return { data: defaultData, initialized: false, remote: true };
-  }
-
-  const text = await new Response(result.stream).text();
-  const parsed = text.trim() ? (JSON.parse(text) as Partial<AppData>) : null;
-
-  return { data: normalizeAppData(parsed), initialized: true, remote: true };
-}
-
-async function writeState(data: Partial<AppData>) {
-  if (!hasBlobToken()) {
-    throw new Error("BLOB_READ_WRITE_TOKEN nao configurado.");
-  }
-
-  const normalized = normalizeAppData(data);
-
-  await put(statePath, JSON.stringify(normalized), {
-    access: "private",
-    allowOverwrite: true,
-    cacheControlMaxAge: 60,
-    contentType: "application/json",
-  });
-
-  return normalized;
-}
-
 export async function GET() {
   try {
-    return NextResponse.json(await readState());
+    const state = await readAppData();
+
+    return NextResponse.json({ ...state, data: sanitizeData(state.data) });
   } catch {
     return NextResponse.json({ data: defaultData, initialized: false, remote: false }, { status: 200 });
   }
@@ -57,10 +19,19 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const body = (await request.json()) as Partial<AppData>;
-    const data = await writeState(body);
+    const state = await readAppData();
+    const cookieStore = await cookies();
+    const userId = verifySessionToken(cookieStore.get(sessionCookieName)?.value);
+    const user = userId ? state.data.users.find((entry) => entry.id === userId) : null;
 
-    return NextResponse.json({ ok: true, data, remote: true });
+    if (!user) {
+      return NextResponse.json({ ok: false, remote: true }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Partial<AppData>;
+    const data = await writePublicAppData(body);
+
+    return NextResponse.json({ ok: true, data: sanitizeData(data), remote: true });
   } catch {
     return NextResponse.json({ ok: false, remote: false }, { status: 503 });
   }

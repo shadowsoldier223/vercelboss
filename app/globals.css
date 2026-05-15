@@ -939,6 +939,25 @@ textarea {
   gap: 12px;
 }
 
+.inlineHuntForm {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(15, 17, 26, 0.55);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.inlineHuntActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.inlineHuntActions .secondaryButton {
+  margin-top: 0;
+}
+
 .compactHunt {
   gap: 8px;
 }
@@ -1051,6 +1070,63 @@ textarea {
   border-radius: 8px;
   background: var(--surface-3);
   padding: 14px;
+}
+
+.backupGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.backupCard,
+.logRow {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 14px;
+}
+
+.backupCard {
+  display: grid;
+  gap: 12px;
+}
+
+.backupCard .submitButton,
+.restoreInput {
+  width: 100%;
+}
+
+.dangerBackupCard {
+  border-color: rgba(226, 93, 79, 0.38);
+}
+
+.logList {
+  display: grid;
+  gap: 10px;
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.logRow div {
+  display: grid;
+  gap: 3px;
+}
+
+.logRow span,
+.logRow p,
+.logRow em {
+  color: var(--muted);
+}
+
+.logRow em {
+  font-style: normal;
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .adminHuntForm {
@@ -1306,6 +1382,8 @@ h3 {
   .profileGrid,
   .duoGrid,
   .huntFilters,
+  .backupGrid,
+  .logRow,
   .adminInlineForm,
   .adminHuntFields,
   .adminRow,
@@ -1359,6 +1437,7 @@ h3 {
 
   .toolGrid,
   .fieldGrid,
+  .inlineHuntActions,
   .imageTools,
   .imageGrid,
   .savedImages,

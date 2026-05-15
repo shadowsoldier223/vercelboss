@@ -24,7 +24,14 @@ export type ParsedDrop = {
 export type AppUser = {
   id: string;
   username: string;
-  password: string;
+  password?: string;
+  passwordHash?: string;
+  role: UserRole;
+};
+
+export type PublicUser = {
+  id: string;
+  username: string;
   role: UserRole;
 };
 
@@ -93,6 +100,16 @@ export type HuntSession = {
   createdAt: string;
 };
 
+export type ActivityLog = {
+  id: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  target: string;
+  details: string;
+  createdAt: string;
+};
+
 export type AppData = {
   feats: Feat[];
   duos: Duo[];
@@ -100,4 +117,5 @@ export type AppData = {
   users: AppUser[];
   hunts: HuntSession[];
   lootBosses: LootBoss[];
+  activityLogs: ActivityLog[];
 };

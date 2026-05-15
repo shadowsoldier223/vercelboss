@@ -3,14 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useState } from "react";
-import { Crown, ImagePlus, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users, X } from "lucide-react";
+import { Crown, Download, FileUp, History, ImagePlus, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users, X } from "lucide-react";
 import { compressHuntImageFile, deleteHuntImages, uploadHuntImageFiles } from "@/lib/clientImages";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
 import type { HuntImage, LootBoss, UserRole } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
-type AdminTab = "atividades" | "bosses" | "duos" | "hunts" | "usuarios";
+type AdminTab = "atividades" | "bosses" | "duos" | "hunts" | "usuarios" | "backup" | "logs";
 
 const tabs: { key: AdminTab; label: string }[] = [
   { key: "atividades", label: "Atividades" },
@@ -18,6 +18,8 @@ const tabs: { key: AdminTab; label: string }[] = [
   { key: "duos", label: "Duos" },
   { key: "hunts", label: "Hunts" },
   { key: "usuarios", label: "Usuarios" },
+  { key: "backup", label: "Backup" },
+  { key: "logs", label: "Logs" },
 ];
 
 export default function AdminPage() {
@@ -133,6 +135,52 @@ export default function AdminPage() {
     void deleteHuntImages([image]);
     updateHunt(huntId, { images: currentImages.filter((entry) => entry.id !== image.id) });
     setMessage("Imagem removida da hunt.");
+  }
+
+  async function exportBackup() {
+    const response = await fetch("/api/backup", { cache: "no-store" }).catch(() => null);
+
+    if (!response?.ok) {
+      setMessage("Nao foi possivel baixar o backup.");
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `closedboss-backup-${today()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setMessage("Backup baixado.");
+  }
+
+  async function restoreBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    event.target.value = "";
+
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const response = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: text,
+      });
+
+      if (!response.ok) {
+        setMessage("Nao foi possivel restaurar esse arquivo.");
+        return;
+      }
+
+      setMessage("Backup restaurado. Recarregando o painel...");
+      window.setTimeout(() => window.location.reload(), 600);
+    } catch {
+      setMessage("Arquivo de backup invalido.");
+    }
   }
 
   if (!currentUser || !isAdmin) {
@@ -395,6 +443,7 @@ export default function AdminPage() {
               <label>
                 Senha
                 <input
+                  type="password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   placeholder="Senha inicial"
@@ -421,8 +470,15 @@ export default function AdminPage() {
                     <strong>{user.username}</strong>
                   </div>
                   <input
-                    defaultValue={user.password}
-                    onBlur={(event) => updateUser(user.id, { password: event.target.value })}
+                    type="password"
+                    defaultValue=""
+                    placeholder="Nova senha"
+                    onBlur={(event) => {
+                      if (event.target.value.trim()) {
+                        updateUser(user.id, { password: event.target.value });
+                        event.target.value = "";
+                      }
+                    }}
                   />
                   <select
                     defaultValue={user.role}
@@ -437,6 +493,57 @@ export default function AdminPage() {
                   </button>
                 </article>
               ))}
+            </div>
+          </div>
+        ) : null}
+
+        {tab === "backup" ? (
+          <div className="backupGrid">
+            <article className="backupCard">
+              <div className="adminRowTitle">
+                <Download size={18} />
+                <strong>Exportar dados</strong>
+              </div>
+              <p className="mutedText">Baixa um arquivo com usuarios, hunts, bosses, duos, loots, imagens e logs.</p>
+              <button type="button" className="submitButton" onClick={exportBackup}>
+                <Download size={18} />
+                Baixar backup
+              </button>
+            </article>
+
+            <article className="backupCard dangerBackupCard">
+              <div className="adminRowTitle">
+                <FileUp size={18} />
+                <strong>Restaurar backup</strong>
+              </div>
+              <p className="mutedText">Substitui os dados atuais pelo arquivo selecionado. Use apenas backups confiaveis.</p>
+              <label className="imageInputButton restoreInput">
+                <FileUp size={18} />
+                Escolher arquivo
+                <input type="file" accept="application/json,.json" onChange={restoreBackup} />
+              </label>
+            </article>
+          </div>
+        ) : null}
+
+        {tab === "logs" ? (
+          <div className="adminStack">
+            <div className="adminRowTitle">
+              <History size={18} />
+              <strong>Historico recente</strong>
+            </div>
+            <div className="logList">
+              {data.activityLogs.map((log) => (
+                <article className="logRow" key={log.id}>
+                  <div>
+                    <strong>{log.actorName}</strong>
+                    <span>{`${log.action} ${log.target}`}</span>
+                  </div>
+                  <p>{log.details}</p>
+                  <em>{formatDate(log.createdAt)}</em>
+                </article>
+              ))}
+              {!data.activityLogs.length ? <p className="mutedText">Ainda nao existem logs salvos.</p> : null}
             </div>
           </div>
         ) : null}

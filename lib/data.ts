@@ -77,6 +77,7 @@ export function normalizeAppData(data: Partial<AppData> | null): AppData {
     users: Array.isArray(data?.users) && data.users.length ? data.users : defaultData.users,
     hunts: Array.isArray(data?.hunts) ? data.hunts.map(normalizeHunt) : [],
     lootBosses: Array.isArray(data?.lootBosses) ? data.lootBosses : defaultData.lootBosses,
+    activityLogs: Array.isArray(data?.activityLogs) ? data.activityLogs.slice(0, 250) : [],
   };
 }
 

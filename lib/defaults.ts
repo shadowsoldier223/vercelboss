@@ -36,4 +36,5 @@ export const defaultData: AppData = {
   users: starterUsers,
   hunts: [],
   lootBosses,
+  activityLogs: [],
 };
