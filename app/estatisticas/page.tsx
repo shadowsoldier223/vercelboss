@@ -1,13 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { BarChart3, Crown, Gem, Shield, Swords, Trophy } from "lucide-react";
+import { BarChart3, Crown, Gem, RefreshCw, Shield, Swords, Trophy } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { formatSignedNumber } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 export default function EstatisticasPage() {
-  const { currentUser, hasLoaded, stats } = useAppData();
+  const { currentUser, hasLoaded, refreshData, stats } = useAppData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  async function refreshNow() {
+    setIsRefreshing(true);
+    await refreshData();
+    setIsRefreshing(false);
+  }
 
   if (!hasLoaded) {
     return (
@@ -34,10 +42,16 @@ export default function EstatisticasPage() {
 
   return (
     <>
-      <section className="pageHeader">
-        <span className="eyebrow">Resumo</span>
-        <h1>Estatisticas</h1>
-        <p>Totais por registro, item e personagem, usando os dados salvos no navegador.</p>
+      <section className="pageHeader statsHeader">
+        <div>
+          <span className="eyebrow">Resumo</span>
+          <h1>Estatisticas</h1>
+          <p>Totais por registro, item e personagem, usando os dados sincronizados do painel.</p>
+        </div>
+        <button type="button" className="headerActionButton" onClick={refreshNow} disabled={isRefreshing}>
+          <RefreshCw size={17} />
+          {isRefreshing ? "Atualizando" : "Atualizar"}
+        </button>
       </section>
 
       <section className="statGrid">

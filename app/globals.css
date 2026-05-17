@@ -308,6 +308,37 @@ p {
   margin: 36px 0 18px;
 }
 
+.statsHeader {
+  max-width: 920px;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+
+.statsHeader > div {
+  display: grid;
+  gap: 10px;
+}
+
+.headerActionButton {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  font-weight: 900;
+}
+
+.headerActionButton:hover {
+  border-color: var(--amber);
+  color: var(--amber-2);
+}
+
 .pageGrid {
   display: grid;
   grid-template-columns: minmax(310px, 390px) minmax(0, 1fr);
@@ -1476,6 +1507,11 @@ h3 {
   }
 
   .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .statsHeader {
     align-items: stretch;
     flex-direction: column;
   }

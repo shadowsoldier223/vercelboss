@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { deleteHuntImages } from "./clientImages";
 import { hasCustomLocalData, makeId, normalizeAppData, normalizeTags } from "./data";
 import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
@@ -56,6 +65,30 @@ function useAppDataState() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [remoteSyncAllowed, setRemoteSyncAllowed] = useState(false);
+
+  const refreshData = useCallback(async () => {
+    const response = await fetch("/api/state", { cache: "no-store" }).catch(() => null);
+
+    if (!response?.ok) return false;
+
+    const payload = (await response.json()) as {
+      data?: Partial<AppData>;
+      initialized?: boolean;
+      remote?: boolean;
+    };
+    const hasRemoteStore = Boolean(payload.remote);
+
+    setRemoteEnabled(hasRemoteStore);
+    setRemoteSyncAllowed(Boolean(hasRemoteStore && payload.initialized));
+
+    if (!hasRemoteStore) return false;
+
+    const nextData = normalizeAppData(payload.data ?? null);
+
+    setData((current) => (JSON.stringify(current) === JSON.stringify(nextData) ? current : nextData));
+
+    return true;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +202,31 @@ function useAppDataState() {
       controller.abort();
     };
   }, [currentUser, data, hasLoaded, remoteEnabled, remoteSyncAllowed]);
+
+  useEffect(() => {
+    if (!hasLoaded || !currentUser || !remoteEnabled) return;
+
+    function refreshVisibleData() {
+      void refreshData();
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshData();
+      }
+    }
+
+    const interval = window.setInterval(refreshVisibleData, 10000);
+
+    window.addEventListener("focus", refreshVisibleData);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshVisibleData);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [currentUser, hasLoaded, refreshData, remoteEnabled]);
 
   useEffect(() => {
     if (!hasLoaded || !currentUser) return;
@@ -843,6 +901,7 @@ function useAppDataState() {
     currentUser,
     isAdmin,
     stats,
+    refreshData,
     login,
     logout,
     removeFeat,
