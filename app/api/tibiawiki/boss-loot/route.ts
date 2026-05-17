@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { normalizeLootItemKey } from "@/lib/lootNames";
 import { readAppData, sessionCookieName, verifySessionToken } from "@/lib/serverData";
 import type { LootBoss } from "@/lib/types";
 
@@ -50,10 +51,6 @@ function keyify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizeItemName(value: string) {
-  return value.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
 function wikiTitle(value: string) {
   return value.trim().replace(/\s+/g, "_");
 }
@@ -82,6 +79,14 @@ function inferRarityFromChance(chancePercent: number | null) {
   return "very rare";
 }
 
+function inferRarityFromMissingSample(kills: number | null | undefined) {
+  if (!kills) return null;
+
+  const upperBoundPercent = 100 / kills;
+
+  return upperBoundPercent < 0.5 ? "very rare" : null;
+}
+
 function parseNumber(value: string | undefined) {
   if (!value) return undefined;
 
@@ -107,7 +112,18 @@ async function fetchCreature(title: string) {
 
   if (!response.ok) return null;
 
-  return (await response.json()) as TibiaWikiCreature;
+  const creature = (await response.json()) as TibiaWikiCreature;
+  const hasCreatureData = Boolean(
+    creature.name ||
+      creature.actualname ||
+      creature.hp ||
+      creature.exp ||
+      creature.cooldown ||
+      creature.isboss ||
+      (Array.isArray(creature.loot) && creature.loot.length),
+  );
+
+  return hasCreatureData ? creature : null;
 }
 
 async function searchWikiTitle(query: string) {
@@ -244,13 +260,14 @@ async function buildBossLookup(boss: LootBoss) {
 
   const title = creature.name ?? pageTitle;
   const statistics = await fetchLootStatistics(title);
-  const statsByItem = new Map((statistics?.items ?? []).map((item) => [normalizeItemName(item.itemName), item]));
+  const statsByItem = new Map((statistics?.items ?? []).map((item) => [normalizeLootItemKey(item.itemName), item]));
   const lootFromCreature = Array.isArray(creature.loot) ? creature.loot : [];
   const mergedLoot = lootFromCreature.map((entry) => {
     const itemName = entry.itemName ?? "";
-    const itemStats = statsByItem.get(normalizeItemName(itemName));
+    const itemStats = statsByItem.get(normalizeLootItemKey(itemName));
     const chancePercent = itemStats?.chancePercent ?? null;
-    const rarity = entry.rarity ?? inferRarityFromChance(chancePercent);
+    const missingSampleRarity = itemStats ? null : inferRarityFromMissingSample(statistics?.kills);
+    const rarity = entry.rarity ?? inferRarityFromChance(chancePercent) ?? missingSampleRarity;
 
     return {
       itemName,
@@ -265,12 +282,20 @@ async function buildBossLookup(boss: LootBoss) {
             totalAmount: itemStats.total ?? null,
             source: "Loot Statistics",
           }
+        : missingSampleRarity
+          ? {
+              kills: statistics?.kills ?? 0,
+              droppedInKills: 0,
+              chancePercent: null,
+              totalAmount: null,
+              source: "Loot Statistics sem ocorrencia",
+            }
         : null,
     };
   });
-  const knownItems = new Set(mergedLoot.map((entry) => normalizeItemName(entry.itemName)));
+  const knownItems = new Set(mergedLoot.map((entry) => normalizeLootItemKey(entry.itemName)));
   const statisticsOnlyLoot = (statistics?.items ?? [])
-    .filter((entry) => !knownItems.has(normalizeItemName(entry.itemName)))
+    .filter((entry) => !knownItems.has(normalizeLootItemKey(entry.itemName)))
     .map((entry) => {
       const rarity = inferRarityFromChance(entry.chancePercent);
 
