@@ -62,6 +62,7 @@ export default function EstatisticasPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lootInfo, setLootInfo] = useState<Record<string, WikiLootInfo>>({});
   const [lootInfoStatus, setLootInfoStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const statDrops = useMemo(() => data.drops.filter((drop) => !isBossBonusLoot(drop.item)), [data.drops]);
   const lootSessions = useMemo(() => {
     const sessions = new Map<
       string,
@@ -74,7 +75,7 @@ export default function EstatisticasPage() {
       }
     >();
 
-    for (const drop of data.drops) {
+    for (const drop of statDrops) {
       const session = sessions.get(drop.createdAt) ?? {
         createdAt: drop.createdAt,
         bossName: drop.bossName,
@@ -89,7 +90,7 @@ export default function EstatisticasPage() {
     }
 
     return Array.from(sessions.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [data.drops]);
+  }, [statDrops]);
   const itemTotals = useMemo(() => {
     const totals = new Map<
       string,
@@ -99,11 +100,10 @@ export default function EstatisticasPage() {
         category: string;
         rarity: string | null;
         rarityRange: string | null;
-        isBossBonus: boolean;
       }
     >();
 
-    for (const drop of data.drops) {
+    for (const drop of statDrops) {
       const normalizedItem = normalizeLootItemKey(drop.item);
       const lookup = lootInfo[`${drop.bossKey}:${normalizedItem}`];
       const itemName = lookup?.itemName ?? (cleanLootItemName(drop.item) || drop.item);
@@ -113,25 +113,23 @@ export default function EstatisticasPage() {
         category: drop.category,
         rarity: lookup?.rarity ?? null,
         rarityRange: lookup?.rarityRange ?? null,
-        isBossBonus: false,
       };
 
       item.item = lookup?.itemName ?? item.item;
       item.quantity += drop.quantity;
       item.rarity = lookup?.rarity ?? item.rarity;
       item.rarityRange = lookup?.rarityRange ?? item.rarityRange;
-      item.isBossBonus = item.isBossBonus || isBossBonusLoot(drop.item);
       totals.set(normalizedItem, item);
     }
 
     return Array.from(totals.values()).sort((a, b) => {
-      const rarityA = rarityRank[a.rarity ?? ""] ?? (a.isBossBonus ? 2 : 9);
-      const rarityB = rarityRank[b.rarity ?? ""] ?? (b.isBossBonus ? 2 : 9);
+      const rarityA = rarityRank[a.rarity ?? ""] ?? 9;
+      const rarityB = rarityRank[b.rarity ?? ""] ?? 9;
 
       if (rarityA !== rarityB) return rarityA - rarityB;
       return b.quantity - a.quantity;
     });
-  }, [data.drops, lootInfo]);
+  }, [statDrops, lootInfo]);
   const characterLoot = useMemo(() => {
     const players = new Map<
       string,
@@ -151,13 +149,12 @@ export default function EstatisticasPage() {
             rarityRange: string | null;
             chancePercent: number | null;
             kills: number | null;
-            isBossBonus: boolean;
           }
         >;
       }
     >();
 
-    for (const drop of data.drops) {
+    for (const drop of statDrops) {
       const player = drop.player.trim() || "Sem personagem";
       const playerStats =
         players.get(player) ??
@@ -171,7 +168,6 @@ export default function EstatisticasPage() {
       const itemName = cleanLootItemName(drop.item) || drop.item;
       const itemKey = `${drop.bossKey}:${normalizeLootItemKey(drop.item)}`;
       const lookup = lootInfo[itemKey];
-      const isBossBonus = isBossBonusLoot(drop.item);
       const item =
         playerStats.items.get(itemKey) ??
         {
@@ -183,7 +179,6 @@ export default function EstatisticasPage() {
           rarityRange: lookup?.rarityRange ?? null,
           chancePercent: lookup?.chancePercent ?? null,
           kills: lookup?.kills ?? null,
-          isBossBonus,
         };
 
       item.quantity += drop.quantity;
@@ -192,7 +187,6 @@ export default function EstatisticasPage() {
       item.rarityRange = lookup?.rarityRange ?? item.rarityRange;
       item.chancePercent = lookup?.chancePercent ?? item.chancePercent;
       item.kills = lookup?.kills ?? item.kills;
-      item.isBossBonus = item.isBossBonus || isBossBonus;
       playerStats.sessions.add(drop.createdAt);
       playerStats.bosses.add(drop.bossName);
       playerStats.quantity += drop.quantity;
@@ -203,14 +197,14 @@ export default function EstatisticasPage() {
     return Array.from(players.values())
       .map((player) => {
         const items = Array.from(player.items.values()).sort((a, b) => {
-          const rarityA = rarityRank[a.rarity ?? ""] ?? (a.isBossBonus ? 2 : 9);
-          const rarityB = rarityRank[b.rarity ?? ""] ?? (b.isBossBonus ? 2 : 9);
+          const rarityA = rarityRank[a.rarity ?? ""] ?? 9;
+          const rarityB = rarityRank[b.rarity ?? ""] ?? 9;
 
           if (rarityA !== rarityB) return rarityA - rarityB;
           if (a.chancePercent !== null && b.chancePercent !== null) return a.chancePercent - b.chancePercent;
           return b.quantity - a.quantity;
         });
-        const notableItems = items.filter((item) => ["very rare", "rare", "semi-rare"].includes(item.rarity ?? "") || item.isBossBonus);
+        const notableItems = items.filter((item) => ["very rare", "rare", "semi-rare"].includes(item.rarity ?? ""));
 
         return {
           ...player,
@@ -220,7 +214,7 @@ export default function EstatisticasPage() {
         };
       })
       .sort((a, b) => b.sessions.size - a.sessions.size || b.quantity - a.quantity);
-  }, [data.drops, lootInfo]);
+  }, [statDrops, lootInfo]);
 
   useEffect(() => {
     if (!currentUser || !data.drops.length) {
@@ -339,10 +333,7 @@ export default function EstatisticasPage() {
           <div className="tableList">
             {itemTotals.map((entry) => (
               <div className="tableRow" key={entry.item}>
-                <span>
-                  {entry.item}
-                  {entry.isBossBonus ? <small>Boss Bonus</small> : null}
-                </span>
+                <span>{entry.item}</span>
                 <strong>{entry.quantity}x</strong>
                 <em>{entry.rarity ? displayRarity(entry.rarity, entry.rarityRange) : entry.category}</em>
               </div>
@@ -394,10 +385,7 @@ export default function EstatisticasPage() {
                   {entry.items.slice(0, Math.max(8, entry.notableItems.length)).map((item) => (
                     <div className="characterItemRow" key={`${entry.player}-${item.bossKey}-${item.item}`}>
                       <div>
-                        <strong>
-                          {item.item}
-                          {item.isBossBonus ? <small>Boss Bonus</small> : null}
-                        </strong>
+                        <strong>{item.item}</strong>
                         <span>{item.bossName}</span>
                       </div>
                       <span>{`${formatNumber(item.quantity)}x`}</span>
