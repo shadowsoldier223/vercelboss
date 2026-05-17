@@ -834,6 +834,38 @@ function useAppDataState() {
     );
   }
 
+  function removeLootSession(createdAt: string) {
+    if (!isAdmin) return;
+
+    const sessionDrops = data.drops.filter((drop) => drop.createdAt === createdAt);
+    const firstDrop = sessionDrops[0];
+
+    if (!firstDrop) return;
+
+    const quantity = sessionDrops.reduce((total, drop) => total + drop.quantity, 0);
+
+    setData((current) =>
+      withActivity(
+        current,
+        { drops: current.drops.filter((drop) => drop.createdAt !== createdAt) },
+        "removeu",
+        "Loot",
+        `${firstDrop.bossName} de ${firstDrop.player}`,
+        {
+          targetId: createdAt,
+          metadata: [
+            meta("Boss", firstDrop.bossName),
+            meta("Personagem", firstDrop.player),
+            meta("Sessao", createdAt),
+            meta("Itens removidos", sessionDrops.length),
+            meta("Quantidade total", quantity),
+            meta("Hunts", "preservadas"),
+          ],
+        },
+      ),
+    );
+  }
+
   function saveHuntSession(input: HuntInput) {
     if (!currentUser || !input.rawText.trim()) return null;
 
@@ -1107,6 +1139,7 @@ function useAppDataState() {
     resetDuo,
     saveLootSession,
     undoLastLoot,
+    removeLootSession,
     saveHuntSession,
     removeHunt,
     updateHunt,

@@ -1,15 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Crown, Gem, RefreshCw, Shield, Swords, Trophy } from "lucide-react";
+import { BarChart3, Crown, Gem, RefreshCw, Shield, Swords, Trash2, Trophy } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
-import { formatSignedNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatSignedNumber, formatTime } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
 
 export default function EstatisticasPage() {
-  const { currentUser, hasLoaded, refreshData, stats } = useAppData();
+  const { currentUser, data, hasLoaded, isAdmin, refreshData, removeLootSession, stats } = useAppData();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const lootSessions = useMemo(() => {
+    const sessions = new Map<
+      string,
+      {
+        createdAt: string;
+        bossName: string;
+        player: string;
+        itemCount: number;
+        quantity: number;
+      }
+    >();
+
+    for (const drop of data.drops) {
+      const session = sessions.get(drop.createdAt) ?? {
+        createdAt: drop.createdAt,
+        bossName: drop.bossName,
+        player: drop.player,
+        itemCount: 0,
+        quantity: 0,
+      };
+
+      session.itemCount += 1;
+      session.quantity += drop.quantity;
+      sessions.set(drop.createdAt, session);
+    }
+
+    return Array.from(sessions.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [data.drops]);
 
   async function refreshNow() {
     setIsRefreshing(true);
@@ -100,6 +128,41 @@ export default function EstatisticasPage() {
             ))}
             {!stats.characterTotals.length ? <p className="mutedText">Ainda nao tem personagens com loot.</p> : null}
           </div>
+        </div>
+      </section>
+
+      <section className="panel statsSessionsPanel">
+        <div className="sectionTitle">
+          <div>
+            <span className="eyebrow">Loot</span>
+            <h2>Sessoes contabilizadas na Stats</h2>
+          </div>
+          <Gem size={22} />
+        </div>
+
+        <div className="lootSessionList">
+          {lootSessions.map((session) => (
+            <article className="lootSessionRow" key={session.createdAt}>
+              <div>
+                <strong>{session.bossName}</strong>
+                <span>{`${session.player} / ${formatDate(session.createdAt)} as ${formatTime(session.createdAt)}`}</span>
+              </div>
+              <span>
+                Itens
+                <strong>{session.itemCount}</strong>
+              </span>
+              <span>
+                Quantidade
+                <strong>{formatNumber(session.quantity)}</strong>
+              </span>
+              {isAdmin ? (
+                <button type="button" className="iconButton" onClick={() => removeLootSession(session.createdAt)} title="Remover da Stats">
+                  <Trash2 size={17} />
+                </button>
+              ) : null}
+            </article>
+          ))}
+          {!lootSessions.length ? <p className="mutedText">Nenhum loot salvo para contabilizar.</p> : null}
         </div>
       </section>
     </>
