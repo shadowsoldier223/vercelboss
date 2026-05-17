@@ -2,11 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useState } from "react";
-import { Crown, Download, FileUp, History, ImagePlus, Plus, RotateCcw, Save, Shield, Swords, Trash2, UserCog, Users, X } from "lucide-react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import {
+  Crown,
+  Download,
+  FileUp,
+  History,
+  ImagePlus,
+  Plus,
+  RotateCcw,
+  Save,
+  Search,
+  Shield,
+  Swords,
+  Trash2,
+  UserCog,
+  Users,
+  X,
+} from "lucide-react";
 import { compressHuntImageFile, deleteHuntImages, uploadHuntImageFiles } from "@/lib/clientImages";
 import { today } from "@/lib/defaults";
-import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
+import { formatDate, formatNumber, formatSignedNumber, formatTime } from "@/lib/format";
 import type { HuntImage, LootBoss, UserRole } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
@@ -52,6 +68,51 @@ export default function AdminPage() {
   const [newRole, setNewRole] = useState<UserRole>("user");
   const [message, setMessage] = useState("");
   const [imageUploadHuntId, setImageUploadHuntId] = useState("");
+  const [logQuery, setLogQuery] = useState("");
+  const [logActor, setLogActor] = useState("");
+  const [logTarget, setLogTarget] = useState("");
+  const logActors = useMemo(() => {
+    return Array.from(new Set(data.activityLogs.map((log) => log.actorName).filter(Boolean))).sort();
+  }, [data.activityLogs]);
+  const logTargets = useMemo(() => {
+    return Array.from(new Set(data.activityLogs.map((log) => log.target).filter(Boolean))).sort();
+  }, [data.activityLogs]);
+  const filteredLogs = useMemo(() => {
+    const query = logQuery.trim().toLowerCase();
+
+    return data.activityLogs.filter((log) => {
+      const metadata = log.metadata?.flatMap((entry) => [entry.label, entry.value]) ?? [];
+      const changes = log.changes?.flatMap((entry) => [entry.field, entry.before, entry.after]) ?? [];
+      const haystack = [
+        log.actorName,
+        log.action,
+        log.target,
+        log.details,
+        log.targetId ?? "",
+        log.createdAt,
+        ...metadata,
+        ...changes,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return (!query || haystack.includes(query)) && (!logActor || log.actorName === logActor) && (!logTarget || log.target === logTarget);
+    });
+  }, [data.activityLogs, logActor, logQuery, logTarget]);
+  const todaysLogs = useMemo(() => {
+    const now = new Date();
+
+    return data.activityLogs.filter((log) => {
+      const date = new Date(log.createdAt);
+
+      return (
+        date.getFullYear() === now.getFullYear() &&
+        date.getMonth() === now.getMonth() &&
+        date.getDate() === now.getDate()
+      );
+    }).length;
+  }, [data.activityLogs]);
+  const lastLog = data.activityLogs[0];
 
   function submitBoss(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -530,20 +591,104 @@ export default function AdminPage() {
           <div className="adminStack">
             <div className="adminRowTitle">
               <History size={18} />
-              <strong>Historico recente</strong>
+              <strong>Historico detalhado</strong>
             </div>
+
+            <div className="logSummaryGrid">
+              <article>
+                <span>Total</span>
+                <strong>{data.activityLogs.length}</strong>
+              </article>
+              <article>
+                <span>Hoje</span>
+                <strong>{todaysLogs}</strong>
+              </article>
+              <article>
+                <span>Usuarios</span>
+                <strong>{logActors.length}</strong>
+              </article>
+              <article>
+                <span>Ultimo</span>
+                <strong>{lastLog ? formatTime(lastLog.createdAt) : "-"}</strong>
+              </article>
+            </div>
+
+            <div className="logFilters">
+              <div className="searchBox">
+                <Search size={17} />
+                <input value={logQuery} onChange={(event) => setLogQuery(event.target.value)} placeholder="Buscar usuario, alvo, item ou alteracao" />
+              </div>
+              <select value={logActor} onChange={(event) => setLogActor(event.target.value)}>
+                <option value="">Todos os usuarios</option>
+                {logActors.map((actor) => (
+                  <option value={actor} key={actor}>
+                    {actor}
+                  </option>
+                ))}
+              </select>
+              <select value={logTarget} onChange={(event) => setLogTarget(event.target.value)}>
+                <option value="">Todos os tipos</option>
+                {logTargets.map((target) => (
+                  <option value={target} key={target}>
+                    {target}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={() => {
+                  setLogQuery("");
+                  setLogActor("");
+                  setLogTarget("");
+                }}
+              >
+                Limpar
+              </button>
+            </div>
+
             <div className="logList">
-              {data.activityLogs.map((log) => (
-                <article className="logRow" key={log.id}>
-                  <div>
-                    <strong>{log.actorName}</strong>
-                    <span>{`${log.action} ${log.target}`}</span>
+              {filteredLogs.map((log) => (
+                <article className="logRow detailedLogRow" key={log.id}>
+                  <div className="logHead">
+                    <div>
+                      <strong>{log.actorName}</strong>
+                      <span>{`${log.action} ${log.target}`}</span>
+                    </div>
+                    <em>{`${formatDate(log.createdAt)} as ${formatTime(log.createdAt)}`}</em>
                   </div>
                   <p>{log.details}</p>
-                  <em>{formatDate(log.createdAt)}</em>
+
+                  {log.metadata?.length ? (
+                    <div className="logMetaGrid">
+                      {log.metadata.map((entry) => (
+                        <span key={`${log.id}-${entry.label}`}>
+                          {entry.label}
+                          <strong>{entry.value}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {log.changes?.length ? (
+                    <div className="changeList">
+                      {log.changes.map((entry) => (
+                        <div className="changeRow" key={`${log.id}-${entry.field}`}>
+                          <strong>{entry.field}</strong>
+                          <span>{entry.before}</span>
+                          <em>{entry.after}</em>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="logFooter">
+                    <span>{log.targetId ? `Alvo: ${log.targetId}` : "Alvo sem ID antigo"}</span>
+                    <code>{log.id}</code>
+                  </div>
                 </article>
               ))}
-              {!data.activityLogs.length ? <p className="mutedText">Ainda nao existem logs salvos.</p> : null}
+              {!filteredLogs.length ? <p className="mutedText">Nenhum log encontrado com esses filtros.</p> : null}
             </div>
           </div>
         ) : null}

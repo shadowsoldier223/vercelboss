@@ -15,13 +15,31 @@ import { hasCustomLocalData, makeId, normalizeAppData, normalizeTags } from "./d
 import { defaultData, duoCooldownMs, oldStorageKey, previousStorageKey, sessionKey, storageKey } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
 import { getLootBoss, parseLootPaste } from "./loot";
-import type { ActivityLog, AppData, AppUser, Duo, DuoStatus, Feat, HuntSession, LootBoss, LootDrop, UserRole } from "./types";
+import type {
+  ActivityChange,
+  ActivityLog,
+  ActivityMeta,
+  AppData,
+  AppUser,
+  Duo,
+  DuoStatus,
+  Feat,
+  HuntSession,
+  LootBoss,
+  LootDrop,
+  UserRole,
+} from "./types";
 
 type FeatInput = Omit<Feat, "id">;
 type HuntInput = Omit<HuntSession, "id" | "userId" | "userName" | "createdAt">;
 type HuntPatch = Partial<Pick<HuntSession, "title" | "character" | "date" | "notes" | "rawText" | "images" | "tags">>;
 type UserInput = { username: string; password: string; role: UserRole };
 type LootBossInput = Pick<LootBoss, "label" | "mode">;
+type ActivityOptions = {
+  targetId?: string;
+  metadata?: ActivityMeta[];
+  changes?: ActivityChange[];
+};
 const sessionEventName = "closedboss-session-change";
 
 function slugify(value: string) {
@@ -32,6 +50,32 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48) || "boss";
+}
+
+function logValue(value: unknown) {
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "vazio";
+  if (typeof value === "number") return value.toLocaleString("pt-BR");
+  if (typeof value === "boolean") return value ? "sim" : "nao";
+  if (value === null || value === undefined || value === "") return "vazio";
+
+  return String(value);
+}
+
+function meta(label: string, value: unknown): ActivityMeta {
+  return { label, value: logValue(value) };
+}
+
+function change(field: string, before: unknown, after: unknown): ActivityChange | null {
+  const previous = logValue(before);
+  const next = logValue(after);
+
+  if (previous === next) return null;
+
+  return { field, before: previous, after: next };
+}
+
+function compactChanges(changes: Array<ActivityChange | null>) {
+  return changes.filter((entry): entry is ActivityChange => Boolean(entry));
 }
 
 function readStoredData(): AppData {
@@ -306,23 +350,33 @@ function useAppDataState() {
     };
   }, [data]);
 
-  function createActivity(action: string, target: string, details: string): ActivityLog {
+  function createActivity(action: string, target: string, details: string, options: ActivityOptions = {}): ActivityLog {
     return {
       id: makeId("activity"),
       actorId: currentUser?.id ?? "system",
       actorName: currentUser?.username ?? "Sistema",
       action,
       target,
+      targetId: options.targetId,
       details,
+      metadata: options.metadata?.filter((entry) => entry.value !== "vazio"),
+      changes: options.changes?.filter((entry) => entry.before !== entry.after),
       createdAt: new Date().toISOString(),
     };
   }
 
-  function withActivity(current: AppData, patch: Partial<AppData>, action: string, target: string, details: string): AppData {
+  function withActivity(
+    current: AppData,
+    patch: Partial<AppData>,
+    action: string,
+    target: string,
+    details: string,
+    options: ActivityOptions = {},
+  ): AppData {
     return {
       ...current,
       ...patch,
-      activityLogs: [createActivity(action, target, details), ...current.activityLogs].slice(0, 250),
+      activityLogs: [createActivity(action, target, details, options), ...current.activityLogs].slice(0, 250),
     };
   }
 
@@ -371,6 +425,10 @@ function useAppDataState() {
         "removeu",
         "Atividade",
         feat.title,
+        {
+          targetId: feat.id,
+          metadata: [meta("Tipo", feat.type), meta("Personagem", feat.character), meta("Data", feat.date), meta("Loot", feat.loot)],
+        },
       );
     });
   }
@@ -389,6 +447,16 @@ function useAppDataState() {
         "editou",
         "Atividade",
         patch.title?.trim() || feat.title,
+        {
+          targetId: feat.id,
+          metadata: [meta("Tipo", feat.type), meta("Personagem", patch.character ?? feat.character), meta("Data", patch.date ?? feat.date)],
+          changes: compactChanges([
+            change("Titulo", feat.title, patch.title ?? feat.title),
+            change("Personagem", feat.character, patch.character ?? feat.character),
+            change("Loot", feat.loot, patch.loot ?? feat.loot),
+            change("Notas", feat.notes, patch.notes ?? feat.notes),
+          ]),
+        },
       );
     });
   }
@@ -399,27 +467,28 @@ function useAppDataState() {
     const leftName = left.trim();
     const rightName = right.trim();
 
-    setData((current) =>
-      withActivity(
+    setData((current) => {
+      const newDuo = {
+        id: makeId("duo"),
+        left: leftName,
+        right: rightName,
+        status: null,
+        markedAt: null,
+        cooldownUntil: null,
+      };
+
+      return withActivity(
         current,
-        {
-          duos: [
-            ...current.duos,
-            {
-              id: makeId("duo"),
-              left: leftName,
-              right: rightName,
-              status: null,
-              markedAt: null,
-              cooldownUntil: null,
-            },
-          ],
-        },
+        { duos: [...current.duos, newDuo] },
         "criou",
         "Duo",
         `${leftName} + ${rightName}`,
-      ),
-    );
+        {
+          targetId: newDuo.id,
+          metadata: [meta("Jogador 1", leftName), meta("Jogador 2", rightName), meta("Cooldown", "20h")],
+        },
+      );
+    });
   }
 
   function removeDuo(id: string) {
@@ -436,6 +505,10 @@ function useAppDataState() {
         "removeu",
         "Duo",
         `${duo.left} + ${duo.right}`,
+        {
+          targetId: duo.id,
+          metadata: [meta("Jogador 1", duo.left), meta("Jogador 2", duo.right), meta("Status anterior", duo.status ?? "pronto")],
+        },
       );
     });
   }
@@ -467,6 +540,11 @@ function useAppDataState() {
         "editou",
         "Duo",
         `${nextLeft} + ${nextRight}`,
+        {
+          targetId: duo.id,
+          metadata: [meta("Status", duo.status ?? "pronto"), meta("Cooldown ate", duo.cooldownUntil ?? "")],
+          changes: compactChanges([change("Jogador 1", duo.left, nextLeft), change("Jogador 2", duo.right, nextRight)]),
+        },
       );
     });
   }
@@ -506,6 +584,10 @@ function useAppDataState() {
         "criou",
         "Boss",
         label,
+        {
+          targetId: key,
+          metadata: [meta("Tipo", input.mode === "duo" ? "Duo" : "Solo"), meta("Chave", key)],
+        },
       );
     });
 
@@ -539,6 +621,11 @@ function useAppDataState() {
         "editou",
         "Boss",
         nextLabel,
+        {
+          targetId: key,
+          metadata: [meta("Chave", key)],
+          changes: compactChanges([change("Nome", boss.label, nextLabel), change("Tipo", boss.mode, nextMode)]),
+        },
       );
     });
   }
@@ -557,6 +644,10 @@ function useAppDataState() {
         "removeu",
         "Boss",
         boss.label,
+        {
+          targetId: boss.key,
+          metadata: [meta("Tipo", boss.mode === "duo" ? "Duo" : "Solo"), meta("Chave", boss.key)],
+        },
       );
     });
   }
@@ -588,6 +679,16 @@ function useAppDataState() {
         "marcou",
         "Duo",
         `${duo.left} + ${duo.right}: ${status === "done" ? "pronto" : "fail"}`,
+        {
+          targetId: duo.id,
+          metadata: [
+            meta("Jogador 1", duo.left),
+            meta("Jogador 2", duo.right),
+            meta("Novo status", status === "done" ? "pronto" : "fail"),
+            meta("Cooldown", new Date(markedAt.getTime() + duoCooldownMs).toISOString()),
+          ],
+          changes: compactChanges([change("Status", duo.status ?? "sem marca", status === "done" ? "pronto" : "fail")]),
+        },
       );
     });
   }
@@ -617,6 +718,11 @@ function useAppDataState() {
         "resetou",
         "Duo",
         `${duo.left} + ${duo.right}`,
+        {
+          targetId: duo.id,
+          metadata: [meta("Jogador 1", duo.left), meta("Jogador 2", duo.right), meta("Cooldown anterior", duo.cooldownUntil ?? "")],
+          changes: compactChanges([change("Status", duo.status ?? "sem marca", "sem marca")]),
+        },
       );
     });
   }
@@ -659,6 +765,7 @@ function useAppDataState() {
     }));
 
     const lootSummary = drops.map((drop) => `${drop.quantity}x ${drop.item}`).join(", ");
+    const totalQuantity = drops.reduce((total, drop) => total + drop.quantity, 0);
 
     setData((current) =>
       withActivity(
@@ -683,6 +790,16 @@ function useAppDataState() {
         "salvou",
         "Loot",
         `${boss.label} para ${playerName}`,
+        {
+          targetId: createdAt,
+          metadata: [
+            meta("Boss", boss.label),
+            meta("Personagem", playerName),
+            meta("Data", date),
+            meta("Itens diferentes", drops.length),
+            meta("Quantidade total", totalQuantity),
+          ],
+        },
       ),
     );
 
@@ -704,6 +821,15 @@ function useAppDataState() {
         "desfez",
         "Loot",
         `${firstDrop.bossName} de ${firstDrop.player}`,
+        {
+          targetId: createdAt,
+          metadata: [
+            meta("Boss", firstDrop.bossName),
+            meta("Personagem", firstDrop.player),
+            meta("Sessao", createdAt),
+            meta("Drops removidos", data.drops.filter((drop) => drop.createdAt === createdAt).length),
+          ],
+        },
       ),
     );
   }
@@ -757,6 +883,19 @@ function useAppDataState() {
         "registrou",
         "Hunt",
         `${title} (${character})`,
+        {
+          targetId: hunt.id,
+          metadata: [
+            meta("Personagem", character),
+            meta("Data", input.date),
+            meta("Tempo", hunt.duration),
+            meta("Balance", hunt.balance),
+            meta("XP/h", hunt.experienceHour),
+            meta("Raw XP/h", hunt.rawExperienceHour),
+            meta("Prints", hunt.images.length),
+            meta("Tags", hunt.tags),
+          ],
+        },
       ),
     );
 
@@ -777,6 +916,16 @@ function useAppDataState() {
         "removeu",
         "Hunt",
         `${hunt.title} (${hunt.character})`,
+        {
+          targetId: hunt.id,
+          metadata: [
+            meta("Usuario", hunt.userName),
+            meta("Personagem", hunt.character),
+            meta("Data", hunt.date),
+            meta("Balance", hunt.balance),
+            meta("Tempo", hunt.duration),
+          ],
+        },
       ),
     );
   }
@@ -788,6 +937,11 @@ function useAppDataState() {
 
     setData((current) => {
       let updatedTitle = existing.title;
+      let updatedCharacter = existing.character;
+      let updatedDate = existing.date;
+      let updatedBalance = existing.balance;
+      let updatedDuration = existing.duration;
+      let updatedImages = existing.images.length;
 
       const hunts = current.hunts.map((hunt) => {
         if (hunt.id !== id) return hunt;
@@ -808,11 +962,35 @@ function useAppDataState() {
         };
 
         updatedTitle = updated.title;
+        updatedCharacter = updated.character;
+        updatedDate = updated.date;
+        updatedBalance = updated.balance;
+        updatedDuration = updated.duration;
+        updatedImages = updated.images.length;
 
         return updated;
       });
 
-      return withActivity(current, { hunts }, "editou", "Hunt", updatedTitle);
+      return withActivity(current, { hunts }, "editou", "Hunt", updatedTitle, {
+        targetId: existing.id,
+        metadata: [
+          meta("Usuario", existing.userName),
+          meta("Personagem", updatedCharacter),
+          meta("Data", updatedDate),
+          meta("Balance", updatedBalance),
+          meta("Tempo", updatedDuration),
+          meta("Prints", updatedImages),
+        ],
+        changes: compactChanges([
+          change("Titulo", existing.title, patch.title ?? existing.title),
+          change("Personagem", existing.character, patch.character ?? existing.character),
+          change("Data", existing.date, patch.date ?? existing.date),
+          change("Notas", existing.notes, patch.notes ?? existing.notes),
+          change("Tags", existing.tags, patch.tags ?? existing.tags),
+          patch.rawText !== undefined ? change("Hunting Analyser", "mantido", "atualizado") : null,
+          patch.images !== undefined ? change("Prints", existing.images.length, patch.images.length) : null,
+        ]),
+      });
     });
   }
 
@@ -824,25 +1002,26 @@ function useAppDataState() {
 
     if (alreadyExists) return false;
 
-    setData((current) =>
-      withActivity(
+    setData((current) => {
+      const newUser = {
+        id: makeId("user"),
+        username,
+        password: input.password,
+        role: input.role,
+      };
+
+      return withActivity(
         current,
-        {
-          users: [
-            ...current.users,
-            {
-              id: makeId("user"),
-              username,
-              password: input.password,
-              role: input.role,
-            },
-          ],
-        },
+        { users: [...current.users, newUser] },
         "criou",
         "Usuario",
         username,
-      ),
-    );
+        {
+          targetId: newUser.id,
+          metadata: [meta("Permissao", input.role === "admin" ? "Admin" : "Usuario"), meta("Senha", "definida")],
+        },
+      );
+    });
 
     return true;
   }
@@ -873,6 +1052,14 @@ function useAppDataState() {
         "editou",
         "Usuario",
         user.username,
+        {
+          targetId: user.id,
+          metadata: [meta("Usuario", user.username)],
+          changes: compactChanges([
+            cleanPatch.role ? change("Permissao", user.role, cleanPatch.role) : null,
+            cleanPatch.password ? change("Senha", "mantida", "alterada") : null,
+          ]),
+        },
       );
     });
   }
@@ -891,6 +1078,10 @@ function useAppDataState() {
         "removeu",
         "Usuario",
         user.username,
+        {
+          targetId: user.id,
+          metadata: [meta("Permissao", user.role === "admin" ? "Admin" : "Usuario")],
+        },
       );
     });
   }

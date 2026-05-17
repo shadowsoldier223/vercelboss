@@ -1138,12 +1138,58 @@ textarea {
 
 .logRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
   gap: 12px;
+}
+
+.logSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.logSummaryGrid article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.logSummaryGrid span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.logSummaryGrid strong {
+  color: var(--amber-2);
+  font-size: 1.35rem;
+}
+
+.logFilters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr) 110px;
+  gap: 8px;
   align-items: center;
 }
 
-.logRow div {
+.logFilters .secondaryButton {
+  margin-top: 0;
+}
+
+.detailedLogRow {
+  align-items: stretch;
+}
+
+.logHead,
+.logFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.logHead div {
   display: grid;
   gap: 3px;
 }
@@ -1154,10 +1200,81 @@ textarea {
   color: var(--muted);
 }
 
+.logHead strong {
+  color: var(--text);
+}
+
 .logRow em {
   font-style: normal;
   font-size: 0.82rem;
   white-space: nowrap;
+}
+
+.logMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.logMetaGrid span {
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: rgba(15, 17, 26, 0.58);
+  padding: 8px;
+  display: grid;
+  gap: 3px;
+  font-size: 0.76rem;
+}
+
+.logMetaGrid strong {
+  color: var(--amber-2);
+  overflow-wrap: anywhere;
+}
+
+.changeList {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(15, 17, 26, 0.45);
+  display: grid;
+  overflow: hidden;
+}
+
+.changeRow {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(110px, 0.55fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.changeRow + .changeRow {
+  border-top: 1px solid var(--line-soft);
+}
+
+.changeRow strong {
+  color: var(--muted-strong);
+}
+
+.changeRow span,
+.changeRow em {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.changeRow em {
+  color: #8ff2c8;
+}
+
+.logFooter {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+  font-size: 0.76rem;
+}
+
+.logFooter code {
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .adminHuntForm {
@@ -1415,6 +1532,10 @@ h3 {
   .huntFilters,
   .backupGrid,
   .logRow,
+  .logSummaryGrid,
+  .logFilters,
+  .logMetaGrid,
+  .changeRow,
   .adminInlineForm,
   .adminHuntFields,
   .adminRow,

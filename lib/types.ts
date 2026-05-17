@@ -100,13 +100,27 @@ export type HuntSession = {
   createdAt: string;
 };
 
+export type ActivityMeta = {
+  label: string;
+  value: string;
+};
+
+export type ActivityChange = {
+  field: string;
+  before: string;
+  after: string;
+};
+
 export type ActivityLog = {
   id: string;
   actorId: string;
   actorName: string;
   action: string;
   target: string;
+  targetId?: string;
   details: string;
+  metadata?: ActivityMeta[];
+  changes?: ActivityChange[];
   createdAt: string;
 };
 
