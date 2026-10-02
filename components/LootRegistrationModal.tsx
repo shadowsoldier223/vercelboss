@@ -13,6 +13,9 @@ type LootRegistrationModalProps = {
   title: string;
   onClose: () => void;
   onSaved?: () => void;
+  /** Quando informado, mostra um botao para concluir o boss sem registrar loot. */
+  onSkip?: () => void;
+  skipLabel?: string;
 };
 
 export function LootRegistrationModal({
@@ -21,6 +24,8 @@ export function LootRegistrationModal({
   title,
   onClose,
   onSaved,
+  onSkip,
+  skipLabel = "Concluir sem loot",
 }: LootRegistrationModalProps) {
   const { data, saveLootSession } = useAppData();
   const [bossKey, setBossKey] = useState(bosses[0]?.key ?? "");
@@ -35,6 +40,21 @@ export function LootRegistrationModal({
       setBossKey(bosses[0]?.key ?? "");
     }
   }, [bossKey, bosses]);
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  function skip() {
+    onSkip?.();
+    onClose();
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -118,6 +138,11 @@ export function LootRegistrationModal({
             <Gem size={18} />
             Registrar loot
           </button>
+          {onSkip ? (
+            <button className="secondaryButton" type="button" onClick={skip}>
+              {skipLabel}
+            </button>
+          ) : null}
         </form>
 
         {message ? <p className="errorNotice">{message}</p> : null}

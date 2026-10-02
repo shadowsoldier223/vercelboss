@@ -66,6 +66,8 @@ export type LootDrop = {
   item: string;
   quantity: number;
   category: string;
+  /** Data informada no registro (YYYY-MM-DD). Drops antigos nao tem. */
+  date?: string;
   createdAt: string;
 };
 

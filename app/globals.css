@@ -1818,3 +1818,140 @@ h3 {
   }
 
 }
+
+/* ---- Aba Loot (somente leitura) ---- */
+.lootToolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.lootToolbar select {
+  min-height: 42px;
+}
+
+.lootLogList {
+  display: grid;
+  gap: 10px;
+}
+
+.lootLogCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.lootLogHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lootLogHead strong {
+  color: var(--amber-2);
+  display: block;
+}
+
+.lootLogHead span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.lootLogMeta {
+  text-align: right;
+  display: grid;
+  gap: 2px;
+}
+
+.lootChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lootChip {
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: rgba(15, 17, 26, 0.58);
+  color: var(--muted-strong);
+  padding: 5px 9px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+/* Raridade: 0 unico, 1 muito raro, 2 raro, 3 semi-raro, 4+ comum */
+.lootChip.tier-0,
+.characterItemRow em.tier-0 {
+  border-color: rgba(255, 209, 102, 0.6);
+  color: var(--amber-2);
+}
+
+.lootChip.tier-1,
+.characterItemRow em.tier-1 {
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #c4b5fd;
+}
+
+.lootChip.tier-2,
+.characterItemRow em.tier-2 {
+  border-color: rgba(90, 154, 214, 0.55);
+  color: #93c5fd;
+}
+
+.lootChip.tier-3,
+.characterItemRow em.tier-3 {
+  color: #8ff2c8;
+}
+
+/* ---- Aba Duos ---- */
+.duoBadge {
+  display: inline-block;
+  min-width: 58px;
+  text-align: center;
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin-right: 8px;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.duoBadge.ready {
+  background: rgba(51, 185, 129, 0.14);
+  color: #8ff2c8;
+}
+
+.duoBadge.done {
+  background: rgba(243, 161, 31, 0.14);
+  color: var(--amber-2);
+}
+
+.duoBadge.fail {
+  background: rgba(226, 93, 79, 0.16);
+  color: #ff9d92;
+}
+
+.rowActions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+  .lootToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .lootLogHead {
+    flex-direction: column;
+  }
+
+  .lootLogMeta {
+    text-align: left;
+  }
+}

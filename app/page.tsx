@@ -19,7 +19,7 @@ const tools = [
   {
     href: "/bosses",
     title: "Bosses",
-    description: "Cadastre bosses abatidos com personagem, local e loot.",
+    description: "Gerencie os bosses e registre o loot dos bosses solo.",
     icon: Crown,
   },
   {
@@ -30,8 +30,8 @@ const tools = [
   },
   {
     href: "/loot",
-    title: "Loot parser",
-    description: "Cole reward chest e salve os drops por personagem.",
+    title: "Loot",
+    description: "Consulte os drops registrados por jogador, boss e historico.",
     icon: Gem,
   },
 ];

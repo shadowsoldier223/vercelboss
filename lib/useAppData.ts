@@ -439,11 +439,23 @@ function useAppDataState() {
     });
   }
 
-  function addDuo(left: string, right: string) {
-    if (!isAdmin || !left.trim() || !right.trim()) return;
+  function addDuo(left: string, right: string): { ok: boolean; error?: string } {
+    if (!isAdmin) return { ok: false, error: "Somente administradores podem adicionar duos." };
 
     const leftName = left.trim();
     const rightName = right.trim();
+
+    if (!leftName || !rightName) return { ok: false, error: "Preencha os dois jogadores." };
+    if (leftName.toLowerCase() === rightName.toLowerCase()) {
+      return { ok: false, error: "Os dois jogadores precisam ser diferentes." };
+    }
+
+    const pairKey = [leftName, rightName].map((name) => name.toLowerCase()).sort().join("|");
+    const alreadyExists = data.duos.some(
+      (duo) => [duo.left, duo.right].map((name) => name.toLowerCase()).sort().join("|") === pairKey,
+    );
+
+    if (alreadyExists) return { ok: false, error: "Essa dupla ja esta cadastrada." };
 
     setData((current) => {
       const newDuo = {
@@ -467,6 +479,8 @@ function useAppDataState() {
         },
       );
     });
+
+    return { ok: true };
   }
 
   function removeDuo(id: string) {
@@ -656,16 +670,16 @@ function useAppDataState() {
         },
         "marcou",
         "Duo",
-        `${duo.left} + ${duo.right}: ${status === "done" ? "pronto" : "fail"}`,
+        `${duo.left} + ${duo.right}: ${status === "done" ? "OK" : "fail"}`,
         {
           targetId: duo.id,
           metadata: [
             meta("Jogador 1", duo.left),
             meta("Jogador 2", duo.right),
-            meta("Novo status", status === "done" ? "pronto" : "fail"),
+            meta("Novo status", status === "done" ? "OK" : "fail"),
             meta("Cooldown", new Date(markedAt.getTime() + duoCooldownMs).toISOString()),
           ],
-          changes: compactChanges([change("Status", duo.status ?? "sem marca", status === "done" ? "pronto" : "fail")]),
+          changes: compactChanges([change("Status", duo.status ?? "sem marca", status === "done" ? "OK" : "fail")]),
         },
       );
     });
@@ -741,6 +755,7 @@ function useAppDataState() {
       item: drop.item,
       quantity,
       category: drop.category,
+      date,
       createdAt,
     }));
 

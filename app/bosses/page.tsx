@@ -32,7 +32,7 @@ export default function BossesPage() {
 
     setLabel("");
     setMode("solo");
-    setMessage("Boss criado e disponivel na aba Loot.");
+    setMessage("Boss criado e disponivel para registrar loot.");
   }
 
   if (!currentUser) {
@@ -41,7 +41,7 @@ export default function BossesPage() {
         <Shield size={30} />
         <span className="eyebrow">Bosses</span>
         <h1>Entre para ver os bosses</h1>
-        <p>Administradores podem adicionar e remover bosses do seletor de loot.</p>
+        <p>Administradores podem adicionar e remover bosses. Todos registram o loot de bosses solo aqui.</p>
         <Link href="/login" className="submitButton">
           Entrar
         </Link>
@@ -55,7 +55,7 @@ export default function BossesPage() {
         <aside className="panel">
           <div className="panelHeader">
             <div>
-              <span className="eyebrow">Bosses do loot</span>
+              <span className="eyebrow">Bosses</span>
               <h1>Novo boss</h1>
             </div>
             <Crown size={22} />
@@ -92,7 +92,7 @@ export default function BossesPage() {
         <aside className="panel readonlyPanel">
           <Crown size={24} />
           <h1>Bosses em modo leitura</h1>
-          <p>Somente administradores podem alterar a lista usada na aba Loot.</p>
+          <p>Somente administradores podem alterar a lista de bosses.</p>
         </aside>
       )}
 
@@ -110,7 +110,7 @@ export default function BossesPage() {
 
         <div className="sectionTitle">
           <div>
-            <span className="eyebrow">Disponiveis no loot</span>
+            <span className="eyebrow">Cadastrados</span>
             <h2>{bosses.length} bosses cadastrados</h2>
           </div>
         </div>

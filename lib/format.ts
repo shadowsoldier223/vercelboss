@@ -16,10 +16,10 @@ export function formatTime(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
-export function formatRemainingTime(isoDate: string | null) {
+export function formatRemainingTime(isoDate: string | null, now: number = Date.now()) {
   if (!isoDate) return "liberado";
 
-  const totalMinutes = Math.max(0, Math.ceil((new Date(isoDate).getTime() - Date.now()) / 60000));
+  const totalMinutes = Math.max(0, Math.ceil((new Date(isoDate).getTime() - now) / 60000));
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
 
@@ -28,8 +28,8 @@ export function formatRemainingTime(isoDate: string | null) {
   return `${hours}h ${minutes}min`;
 }
 
-export function isCooldownActive(isoDate: string | null) {
-  return Boolean(isoDate && new Date(isoDate).getTime() > Date.now());
+export function isCooldownActive(isoDate: string | null, now: number = Date.now()) {
+  return Boolean(isoDate && new Date(isoDate).getTime() > now);
 }
 
 export function formatNumber(value: number) {

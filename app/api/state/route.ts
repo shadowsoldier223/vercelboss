@@ -28,7 +28,18 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, remote: true }, { status: 401 });
     }
 
-    const body = (await request.json()) as Partial<AppData>;
+    const incoming = (await request.json()) as Partial<AppData>;
+    // Usuarios, duos e bosses so podem ser alterados por admin (a UI ja impoe isso,
+    // aqui o servidor tambem impoe). Evita que um usuario comum se promova a admin.
+    const body: Partial<AppData> =
+      user.role === "admin"
+        ? incoming
+        : {
+            ...incoming,
+            users: state.data.users,
+            duos: state.data.duos,
+            lootBosses: state.data.lootBosses,
+          };
     const data = await writePublicAppData(body);
 
     return NextResponse.json({ ok: true, data: sanitizeData(data), remote: true });

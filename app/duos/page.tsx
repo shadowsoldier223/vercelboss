@@ -1,43 +1,97 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Gem, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
+import { Check, Clock, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
 import { LootRegistrationModal } from "@/components/LootRegistrationModal";
 import { StatCard } from "@/components/StatCard";
-import { formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
+import { formatDate, formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
 import type { Duo } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
+import { useNow } from "@/lib/useNow";
+
+function describeDuo(duo: Duo, now: number) {
+  const cooling = isCooldownActive(duo.cooldownUntil, now);
+  const label = duo.status === "done" ? "OK" : "Fail";
+  const markedAt = duo.markedAt ? `${label} em ${formatDate(duo.markedAt)} as ${formatTime(duo.markedAt)}` : "";
+
+  return {
+    cooling,
+    badge: cooling ? label : "Pronto",
+    tone: cooling ? (duo.status === "fail" ? "fail" : "done") : "ready",
+    text: cooling
+      ? `${markedAt} // libera em ${formatRemainingTime(duo.cooldownUntil, now)}`
+      : markedAt
+        ? `Ultimo: ${markedAt} // pronto agora`
+        : "Pronto agora",
+  };
+}
 
 export default function DuosPage() {
   const { currentUser, data, addDuo, isAdmin, markDuo, removeDuo, resetDuo } = useAppData();
+  const now = useNow();
   const [left, setLeft] = useState("");
   const [right, setRight] = useState("");
+  const [formError, setFormError] = useState("");
   const [lootDuo, setLootDuo] = useState<Duo | null>(null);
 
-  const cooldowns = useMemo(
-    () => data.duos.filter((duo) => isCooldownActive(duo.cooldownUntil)),
-    [data.duos],
-  );
-  const ready = data.duos.length - cooldowns.length;
   const duoBosses = useMemo(() => data.lootBosses.filter((boss) => boss.mode === "duo"), [data.lootBosses]);
+
+  // Prontos primeiro; quem esta em cooldown fica ordenado por quem libera antes.
+  const rows = useMemo(() => {
+    return data.duos
+      .map((duo) => ({ duo, ...describeDuo(duo, now) }))
+      .sort((a, b) => {
+        if (a.cooling !== b.cooling) return a.cooling ? 1 : -1;
+        if (!a.cooling) return 0;
+
+        return new Date(a.duo.cooldownUntil ?? 0).getTime() - new Date(b.duo.cooldownUntil ?? 0).getTime();
+      });
+  }, [data.duos, now]);
+
+  const cooldownCount = rows.filter((row) => row.cooling).length;
+  const failCount = rows.filter((row) => row.cooling && row.duo.status === "fail").length;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addDuo(left, right);
+
+    const result = addDuo(left, right);
+
+    if (!result.ok) {
+      setFormError(result.error ?? "Nao foi possivel adicionar essa dupla.");
+      return;
+    }
+
+    setFormError("");
     setLeft("");
     setRight("");
   }
 
+  function confirmIfCooling(duo: Duo, action: string) {
+    if (!isCooldownActive(duo.cooldownUntil, Date.now())) return true;
+
+    return window.confirm(`${duo.left} + ${duo.right} ainda esta em cooldown. ${action} mesmo assim?`);
+  }
+
   function openLootModal(duo: Duo) {
-    if (!duoBosses.length) return;
+    if (!duoBosses.length || !confirmIfCooling(duo, "Registrar o boss")) return;
 
     setLootDuo(duo);
   }
 
-  function closeLootModal() {
-    setLootDuo(null);
+  function failDuo(duo: Duo) {
+    if (!confirmIfCooling(duo, "Marcar fail")) return;
+
+    markDuo(duo.id, "fail");
   }
+
+  function deleteDuo(duo: Duo) {
+    if (!window.confirm(`Remover a dupla ${duo.left} + ${duo.right}?`)) return;
+
+    removeDuo(duo.id);
+  }
+
+  const closeLootModal = useCallback(() => setLootDuo(null), []);
 
   if (!currentUser) {
     return (
@@ -58,14 +112,14 @@ export default function DuosPage() {
       <section className="pageHeader">
         <span className="eyebrow">Lista diaria</span>
         <h1>Duos e cooldown</h1>
-        <p>Marque OK ou fail e o painel calcula 20h de cooldown.</p>
+        <p>Conclua o boss pelo check para registrar o loot e iniciar o cooldown de 20h. Fail tambem inicia o cooldown.</p>
       </section>
 
       <section className="statGrid">
         <StatCard icon={Users} label="Duos cadastrados" value={data.duos.length} />
-        <StatCard icon={Check} label="Prontos" value={ready} />
-        <StatCard icon={Clock} label="Cooldown" value={cooldowns.length} />
-        <StatCard icon={X} label="Fails" value={data.duos.filter((duo) => duo.status === "fail").length} />
+        <StatCard icon={Check} label="Prontos" value={data.duos.length - cooldownCount} />
+        <StatCard icon={Clock} label="Em cooldown" value={cooldownCount} />
+        <StatCard icon={X} label="Fails em cooldown" value={failCount} />
       </section>
 
       <section className="pageGrid duoGrid">
@@ -92,6 +146,7 @@ export default function DuosPage() {
                 Adicionar duo
               </button>
             </form>
+            {formError ? <p className="errorNotice">{formError}</p> : null}
           </aside>
         ) : (
           <aside className="panel readonlyPanel">
@@ -110,41 +165,37 @@ export default function DuosPage() {
           </div>
 
           <div className="duoList">
-            {data.duos.map((duo, index) => (
+            {rows.map(({ duo, badge, tone, text }) => (
               <article className="duoRow" key={duo.id}>
                 <div>
-                  <span className="duoIndex">{index + 1}</span>
+                  <span className={`duoBadge ${tone}`}>{badge}</span>
                   <strong>{duo.left} + {duo.right}</strong>
-                  <p>
-                    {duo.markedAt ? `${duo.status === "done" ? "OK" : "Fail"} ${formatTime(duo.markedAt)} // ` : ""}
-                    {isCooldownActive(duo.cooldownUntil)
-                      ? `libera ${formatRemainingTime(duo.cooldownUntil)}`
-                      : "pronto agora"}
-                  </p>
+                  <p>{text}</p>
                 </div>
                 {isAdmin ? (
                   <div className="rowActions">
                     <button
                       type="button"
-                      title={duoBosses.length ? "Registrar loot e marcar OK" : "Cadastre um boss do tipo duo primeiro"}
+                      title={duoBosses.length ? "Concluir boss (registrar loot e iniciar cooldown)" : "Cadastre um boss do tipo duo primeiro"}
                       onClick={() => openLootModal(duo)}
                       disabled={!duoBosses.length}
                     >
                       <Check size={16} />
                     </button>
-                    <button type="button" title="Fail" onClick={() => markDuo(duo.id, "fail")}>
+                    <button type="button" title="Fail" onClick={() => failDuo(duo)}>
                       <X size={16} />
                     </button>
-                    <button type="button" title="Resetar" onClick={() => resetDuo(duo.id)}>
+                    <button type="button" title="Resetar cooldown" onClick={() => resetDuo(duo.id)}>
                       <RotateCcw size={16} />
                     </button>
-                    <button type="button" title="Remover" onClick={() => removeDuo(duo.id)}>
+                    <button type="button" title="Remover" onClick={() => deleteDuo(duo)}>
                       <Trash2 size={16} />
                     </button>
                   </div>
                 ) : null}
               </article>
             ))}
+            {!rows.length ? <p className="mutedText">Nenhuma dupla cadastrada.</p> : null}
           </div>
         </section>
       </section>
@@ -156,6 +207,8 @@ export default function DuosPage() {
           title={`${lootDuo.left} + ${lootDuo.right}`}
           onClose={closeLootModal}
           onSaved={() => markDuo(lootDuo.id, "done")}
+          onSkip={() => markDuo(lootDuo.id, "done")}
+          skipLabel="Concluir sem registrar loot"
         />
       ) : null}
     </>

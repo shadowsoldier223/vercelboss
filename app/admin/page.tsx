@@ -125,12 +125,19 @@ export default function AdminPage() {
 
     setBossTitle("");
     setBossMode("solo");
-    setMessage("Boss criado e disponivel na aba Loot.");
+    setMessage("Boss criado e disponivel para registrar loot.");
   }
 
   function submitDuo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addDuo(duoLeft, duoRight);
+
+    const result = addDuo(duoLeft, duoRight);
+
+    if (!result.ok) {
+      setMessage(result.error ?? "Nao foi possivel adicionar essa dupla.");
+      return;
+    }
+
     setDuoLeft("");
     setDuoRight("");
     setMessage("Duo adicionado.");
