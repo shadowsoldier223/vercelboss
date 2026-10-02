@@ -392,6 +392,32 @@ select:focus {
   gap: 12px;
 }
 
+.lootOverview {
+  display: grid;
+  gap: 16px;
+  margin-top: 36px;
+}
+
+.lootOverview > .sectionTitle {
+  margin: 0;
+}
+
+.emptyLootState {
+  min-height: 180px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+}
+
+.emptyLootState svg {
+  color: var(--amber);
+}
+
 .characterLootList {
   display: grid;
   gap: 12px;

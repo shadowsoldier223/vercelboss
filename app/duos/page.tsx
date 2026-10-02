@@ -1,46 +1,26 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, Clock, Gem, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
+import { LootRegistrationModal } from "@/components/LootRegistrationModal";
 import { StatCard } from "@/components/StatCard";
-import { today } from "@/lib/defaults";
 import { formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
-import { parseLootPaste } from "@/lib/loot";
 import type { Duo } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 
 export default function DuosPage() {
-  const { currentUser, data, addDuo, isAdmin, markDuo, removeDuo, resetDuo, saveLootSession } = useAppData();
+  const { currentUser, data, addDuo, isAdmin, markDuo, removeDuo, resetDuo } = useAppData();
   const [left, setLeft] = useState("");
   const [right, setRight] = useState("");
   const [lootDuo, setLootDuo] = useState<Duo | null>(null);
-  const [bossKey, setBossKey] = useState("");
-  const [lootPlayer, setLootPlayer] = useState("");
-  const [lootDate, setLootDate] = useState(today());
-  const [lootText, setLootText] = useState("");
-  const [lootMessage, setLootMessage] = useState("");
 
   const cooldowns = useMemo(
     () => data.duos.filter((duo) => isCooldownActive(duo.cooldownUntil)),
     [data.duos],
   );
   const ready = data.duos.length - cooldowns.length;
-  const parsedLoot = useMemo(
-    () => parseLootPaste(lootText, bossKey, data.lootBosses),
-    [bossKey, data.lootBosses, lootText],
-  );
-
-  useEffect(() => {
-    if (!data.lootBosses.length) {
-      setBossKey("");
-      return;
-    }
-
-    if (!bossKey || !data.lootBosses.some((boss) => boss.key === bossKey)) {
-      setBossKey(data.lootBosses[0].key);
-    }
-  }, [bossKey, data.lootBosses]);
+  const duoBosses = useMemo(() => data.lootBosses.filter((boss) => boss.mode === "duo"), [data.lootBosses]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,43 +30,13 @@ export default function DuosPage() {
   }
 
   function openLootModal(duo: Duo) {
+    if (!duoBosses.length) return;
+
     setLootDuo(duo);
-    setLootPlayer(`${duo.left} + ${duo.right}`);
-    setLootDate(today());
-    setLootText("");
-    setLootMessage("");
   }
 
   function closeLootModal() {
     setLootDuo(null);
-    setLootMessage("");
-  }
-
-  function markDoneWithoutLoot() {
-    if (!lootDuo) return;
-
-    markDuo(lootDuo.id, "done");
-    closeLootModal();
-  }
-
-  function submitLoot(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!lootDuo) return;
-
-    if (!bossKey) {
-      setLootMessage("Crie um boss na aba Bosses antes de salvar loot.");
-      return;
-    }
-
-    const saved = saveLootSession({ bossKey, player: lootPlayer, lootText, date: lootDate });
-
-    if (!saved.length) {
-      setLootMessage("Preencha a dupla e cole um loot reconhecivel.");
-      return;
-    }
-
-    markDuo(lootDuo.id, "done");
-    closeLootModal();
   }
 
   if (!currentUser) {
@@ -174,7 +124,12 @@ export default function DuosPage() {
                 </div>
                 {isAdmin ? (
                   <div className="rowActions">
-                    <button type="button" title="OK" onClick={() => openLootModal(duo)}>
+                    <button
+                      type="button"
+                      title={duoBosses.length ? "Registrar loot e marcar OK" : "Cadastre um boss do tipo duo primeiro"}
+                      onClick={() => openLootModal(duo)}
+                      disabled={!duoBosses.length}
+                    >
                       <Check size={16} />
                     </button>
                     <button type="button" title="Fail" onClick={() => markDuo(duo.id, "fail")}>
@@ -195,84 +150,13 @@ export default function DuosPage() {
       </section>
 
       {lootDuo ? (
-        <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Salvar loot do boss">
-          <section className="lootModal">
-            <div className="panelHeader">
-              <div>
-                <span className="eyebrow">Loot do boss</span>
-                <h2>{lootDuo.left} + {lootDuo.right}</h2>
-              </div>
-              <button type="button" className="iconButton" onClick={closeLootModal} title="Fechar">
-                <X size={17} />
-              </button>
-            </div>
-
-            <form className="entryForm" onSubmit={submitLoot}>
-              <label>
-                Boss
-                <select value={bossKey} onChange={(event) => setBossKey(event.target.value)} disabled={!data.lootBosses.length}>
-                  {data.lootBosses.map((boss) => (
-                    <option value={boss.key} key={boss.key}>{boss.label}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="fieldGrid">
-                <label>
-                  Personagem / dupla
-                  <input value={lootPlayer} onChange={(event) => setLootPlayer(event.target.value)} />
-                </label>
-                <label>
-                  Data
-                  <input type="date" value={lootDate} onChange={(event) => setLootDate(event.target.value)} />
-                </label>
-              </div>
-
-              <label>
-                Texto do reward chest
-                <textarea
-                  className="largeTextarea"
-                  value={lootText}
-                  onChange={(event) => setLootText(event.target.value)}
-                  placeholder="You see the following items available in your reward chest: 23 crystal coins, 3 silver tokens..."
-                />
-              </label>
-
-              <div className="modalPreview">
-                <div className="sectionTitle">
-                  <div>
-                    <span className="eyebrow">Preview</span>
-                    <h2>{parsedLoot.length} drops reconhecidos</h2>
-                  </div>
-                  <Gem size={20} />
-                </div>
-                <div className="tableList">
-                  {parsedLoot.slice(0, 8).map(({ drop, quantity }) => (
-                    <div className="tableRow" key={drop.id}>
-                      <span>{drop.item}</span>
-                      <strong>{quantity}x</strong>
-                      <em>{drop.category}</em>
-                    </div>
-                  ))}
-                  {!parsedLoot.length ? <p className="mutedText">Cole o loot para ver o preview.</p> : null}
-                </div>
-              </div>
-
-              <div className="modalActions">
-                <button type="button" className="secondaryButton" onClick={markDoneWithoutLoot}>
-                  <Check size={16} />
-                  Marcar OK sem loot
-                </button>
-                <button className="submitButton" type="submit" disabled={!data.lootBosses.length}>
-                  <Gem size={18} />
-                  Salvar loot e marcar OK
-                </button>
-              </div>
-            </form>
-
-            {lootMessage ? <p className="errorNotice">{lootMessage}</p> : null}
-          </section>
-        </div>
+        <LootRegistrationModal
+          bosses={duoBosses}
+          defaultPlayer={`${lootDuo.left} + ${lootDuo.right}`}
+          title={`${lootDuo.left} + ${lootDuo.right}`}
+          onClose={closeLootModal}
+          onSaved={() => markDuo(lootDuo.id, "done")}
+        />
       ) : null}
     </>
   );

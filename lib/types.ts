@@ -60,6 +60,8 @@ export type LootDrop = {
   id: string;
   bossKey: string;
   bossName: string;
+  userId?: string;
+  userName?: string;
   player: string;
   item: string;
   quantity: number;

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { Crown, Plus, Search, Shield, Trash2 } from "lucide-react";
+import { Crown, Gem, Plus, Search, Shield, Trash2 } from "lucide-react";
+import { LootRegistrationModal } from "@/components/LootRegistrationModal";
 import { useAppData } from "@/lib/useAppData";
 import type { LootBoss } from "@/lib/types";
 
@@ -12,6 +13,7 @@ export default function BossesPage() {
   const [mode, setMode] = useState<LootBoss["mode"]>("solo");
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
+  const [lootBoss, setLootBoss] = useState<LootBoss | null>(null);
 
   const bosses = useMemo(() => {
     return data.lootBosses.filter((boss) =>
@@ -127,7 +129,7 @@ export default function BossesPage() {
                 ) : (
                   <strong>{boss.label}</strong>
                 )}
-                <p>{`${boss.mode === "duo" ? "Duo boss" : "Solo boss"} / aparece no seletor da aba Loot`}</p>
+                <p>{boss.mode === "duo" ? "Duo boss / registre a conclusao na aba Duos" : "Solo boss / registre o loot aqui"}</p>
               </div>
               {isAdmin ? (
                 <div className="rowActions">
@@ -144,11 +146,28 @@ export default function BossesPage() {
                   </button>
                 </div>
               ) : null}
+              {boss.mode === "solo" ? (
+                <div className="rowActions">
+                  <button type="button" title="Registrar loot" onClick={() => setLootBoss(boss)}>
+                    <Gem size={16} />
+                    Registrar loot
+                  </button>
+                </div>
+              ) : null}
             </article>
           ))}
           {!bosses.length ? <p className="mutedText">Nenhum boss encontrado.</p> : null}
         </div>
       </section>
+
+      {lootBoss ? (
+        <LootRegistrationModal
+          bosses={[lootBoss]}
+          defaultPlayer={currentUser.username}
+          title={lootBoss.label}
+          onClose={() => setLootBoss(null)}
+        />
+      ) : null}
     </section>
   );
 }

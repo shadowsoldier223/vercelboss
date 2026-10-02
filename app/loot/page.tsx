@@ -1,61 +1,68 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { Gem, Plus, RotateCcw, Shield } from "lucide-react";
-import { StatCard } from "@/components/StatCard";
-import { today } from "@/lib/defaults";
-import { parseLootPaste } from "@/lib/loot";
+import { Gem, Shield, Users } from "lucide-react";
+import { formatNumber } from "@/lib/format";
+import { normalizeLootItemKey } from "@/lib/lootNames";
 import { useAppData } from "@/lib/useAppData";
 
 export default function LootPage() {
-  const { currentUser, data, isAdmin, stats, saveLootSession, undoLastLoot } = useAppData();
-  const [bossKey, setBossKey] = useState("");
-  const [player, setPlayer] = useState("");
-  const [date, setDate] = useState(today());
-  const [lootText, setLootText] = useState("");
-  const [message, setMessage] = useState("");
+  const { currentUser, data } = useAppData();
+  const userLoot = useMemo(() => {
+    const users = new Map<
+      string,
+      {
+        name: string;
+        sessions: Set<string>;
+        bosses: Set<string>;
+        quantity: number;
+        items: Map<string, { item: string; bossName: string; quantity: number }>;
+      }
+    >();
 
-  const lootBosses = data.lootBosses;
-  const parsed = useMemo(() => parseLootPaste(lootText, bossKey, lootBosses), [lootText, bossKey, lootBosses]);
+    for (const drop of data.drops) {
+      const name = drop.userName?.trim() || drop.player.trim() || "Usuario nao identificado";
+      const userKey = drop.userId || name.toLowerCase();
+      const user = users.get(userKey) ?? {
+        name,
+        sessions: new Set<string>(),
+        bosses: new Set<string>(),
+        quantity: 0,
+        items: new Map(),
+      };
+      const itemKey = `${drop.bossKey}:${normalizeLootItemKey(drop.item)}`;
+      const item = user.items.get(itemKey) ?? {
+        item: drop.item,
+        bossName: drop.bossName,
+        quantity: 0,
+      };
 
-  useEffect(() => {
-    if (!lootBosses.length) {
-      setBossKey("");
-      return;
+      item.quantity += drop.quantity;
+      user.items.set(itemKey, item);
+      user.sessions.add(drop.createdAt);
+      user.bosses.add(drop.bossName);
+      user.quantity += drop.quantity;
+      users.set(userKey, user);
     }
 
-    if (!bossKey || !lootBosses.some((boss) => boss.key === bossKey)) {
-      setBossKey(lootBosses[0].key);
-    }
-  }, [bossKey, lootBosses]);
+    return Array.from(users.values())
+      .map((user) => ({
+        ...user,
+        items: Array.from(user.items.values()).sort((a, b) => b.quantity - a.quantity || a.item.localeCompare(b.item)),
+      }))
+      .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
+  }, [data.drops]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!bossKey) {
-      setMessage("Crie um boss na aba Bosses antes de salvar loot.");
-      return;
-    }
-
-    const saved = saveLootSession({ bossKey, player, lootText, date });
-
-    if (!saved.length) {
-      setMessage("Preencha o personagem e cole um loot reconhecivel.");
-      return;
-    }
-
-    setMessage(`${saved.length} drops salvos e um registro de boss criado.`);
-    setLootText("");
-  }
+  const totalQuantity = data.drops.reduce((total, drop) => total + drop.quantity, 0);
 
   if (!currentUser) {
     return (
       <section className="loginPrompt">
         <Shield size={30} />
         <span className="eyebrow">Loot</span>
-        <h1>Entre para salvar loots</h1>
-        <p>O parser cria drops e registros vinculados ao painel.</p>
+        <h1>Entre para consultar os loots</h1>
+        <p>Os drops registrados ao concluir bosses solo ou duo ficam reunidos aqui.</p>
         <Link href="/login" className="submitButton">
           Entrar
         </Link>
@@ -64,99 +71,64 @@ export default function LootPage() {
   }
 
   return (
-    <>
-      <section className="pageHeader">
-        <span className="eyebrow">Parser</span>
-        <h1>Loot do reward chest</h1>
-        <p>Cole a mensagem do loot, confira o resumo e salve por personagem.</p>
-      </section>
+    <section className="lootOverview">
+      <div className="sectionTitle">
+        <div>
+          <span className="eyebrow">Registro de loot</span>
+          <h1>Totais por usuario</h1>
+        </div>
+        <Gem size={24} />
+      </div>
 
-      <section className="statGrid">
-        <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
-        <StatCard icon={Gem} label="Itens diferentes" value={stats.itemTotals.length} />
-        <StatCard icon={Gem} label="Chars com loot" value={stats.characterTotals.length} />
-        <StatCard icon={Gem} label="Preview atual" value={parsed.length} />
-      </section>
+      <p className="mutedText">
+        {`${formatNumber(totalQuantity)} itens registrados em ${data.drops.length} drops. Novos loots sao adicionados ao concluir um boss solo ou duo.`}
+      </p>
 
-      <section className="pageGrid">
-        <aside className="panel">
-          <div className="panelHeader">
-            <div>
-              <span className="eyebrow">Salvar loot</span>
-              <h2>Nova sessao</h2>
-            </div>
-            <Gem size={22} />
-          </div>
-
-          <form className="entryForm" onSubmit={submit}>
-            <label>
-              Boss
-              <select value={bossKey} onChange={(event) => setBossKey(event.target.value)} disabled={!lootBosses.length}>
-                {lootBosses.map((boss) => (
-                  <option value={boss.key} key={boss.key}>{boss.label}</option>
-                ))}
-              </select>
-            </label>
-            {!lootBosses.length ? (
-              <p className="mutedText">Nenhum boss cadastrado. Crie um boss na aba Bosses.</p>
-            ) : null}
-
-            <div className="fieldGrid">
-              <label>
-                Personagem
-                <input value={player} onChange={(event) => setPlayer(event.target.value)} placeholder="Wanius Zack" />
-              </label>
-              <label>
-                Data
-                <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-              </label>
-            </div>
-
-            <label>
-              Texto do reward chest
-              <textarea
-                value={lootText}
-                onChange={(event) => setLootText(event.target.value)}
-                placeholder="You see the following items available in your reward chest: 23 crystal coins, 3 silver tokens..."
-              />
-            </label>
-
-            <button className="submitButton" type="submit" disabled={!lootBosses.length}>
-              <Plus size={18} />
-              Salvar loot
-            </button>
-          </form>
-
-          {isAdmin ? (
-            <button className="secondaryButton" type="button" onClick={undoLastLoot}>
-              <RotateCcw size={16} />
-              Desfazer ultimo loot
-            </button>
-          ) : null}
-
-          {message ? <p className="notice">{message}</p> : null}
-        </aside>
-
-        <section className="panel">
-          <div className="sectionTitle">
-            <div>
-              <span className="eyebrow">Preview</span>
-              <h2>{parsed.length} drops reconhecidos</h2>
-            </div>
-          </div>
-
-          <div className="tableList">
-            {parsed.map(({ drop, quantity }) => (
-              <div className="tableRow" key={drop.id}>
-                <span>{drop.item}</span>
-                <strong>{quantity}x</strong>
-                <em>{drop.category}</em>
+      <div className="characterLootList">
+        {userLoot.map((user) => (
+          <article className="characterLootCard" key={user.name}>
+            <div className="characterLootHead">
+              <div>
+                <strong>{user.name}</strong>
+                <span>{Array.from(user.bosses).join(", ")}</span>
               </div>
-            ))}
-            {!parsed.length ? <p className="mutedText">Cole um loot para ver o preview.</p> : null}
+              <div className="characterLootMetrics">
+                <span>
+                  Sessoes
+                  <strong>{user.sessions.size}</strong>
+                </span>
+                <span>
+                  Bosses
+                  <strong>{user.bosses.size}</strong>
+                </span>
+                <span>
+                  Total
+                  <strong>{formatNumber(user.quantity)}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="characterItemList">
+              {user.items.map((item) => (
+                <div className="characterItemRow" key={`${user.name}-${item.bossName}-${item.item}`}>
+                  <div>
+                    <strong>{item.item}</strong>
+                    <span>{item.bossName}</span>
+                  </div>
+                  <span>{`${formatNumber(item.quantity)}x`}</span>
+                  <em>Registrado</em>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+        {!userLoot.length ? (
+          <div className="emptyLootState">
+            <Users size={22} />
+            <p>Nenhum loot registrado ainda.</p>
           </div>
-        </section>
-      </section>
-    </>
+        ) : null}
+      </div>
+    </section>
   );
 }

@@ -318,26 +318,6 @@ function useAppDataState() {
   const isAdmin = currentUser?.role === "admin";
 
   const stats = useMemo(() => {
-    const itemTotals = new Map<string, { item: string; quantity: number; category: string }>();
-    const characterTotals = new Map<string, { player: string; quantity: number }>();
-
-    for (const drop of data.drops) {
-      const item = itemTotals.get(drop.item) ?? {
-        item: drop.item,
-        quantity: 0,
-        category: drop.category,
-      };
-      item.quantity += drop.quantity;
-      itemTotals.set(drop.item, item);
-
-      const player = characterTotals.get(drop.player) ?? {
-        player: drop.player,
-        quantity: 0,
-      };
-      player.quantity += drop.quantity;
-      characterTotals.set(drop.player, player);
-    }
-
     return {
       totalFeats: data.feats.length,
       duos: data.duos.length,
@@ -345,8 +325,6 @@ function useAppDataState() {
       lootBosses: data.lootBosses.length,
       registeredHunts: data.hunts.length,
       huntBalance: data.hunts.reduce((total, hunt) => total + hunt.balance, 0),
-      itemTotals: Array.from(itemTotals.values()).sort((a, b) => b.quantity - a.quantity),
-      characterTotals: Array.from(characterTotals.values()).sort((a, b) => b.quantity - a.quantity),
     };
   }, [data]);
 
@@ -757,6 +735,8 @@ function useAppDataState() {
       id: makeId("drop"),
       bossKey,
       bossName: boss.label,
+      userId: currentUser.id,
+      userName: currentUser.username,
       player: playerName,
       item: drop.item,
       quantity,
@@ -804,34 +784,6 @@ function useAppDataState() {
     );
 
     return drops;
-  }
-
-  function undoLastLoot() {
-    if (!isAdmin) return;
-
-    const firstDrop = data.drops[0];
-    if (!firstDrop) return;
-
-    const createdAt = firstDrop.createdAt;
-
-    setData((current) =>
-      withActivity(
-        current,
-        { drops: current.drops.filter((drop) => drop.createdAt !== createdAt) },
-        "desfez",
-        "Loot",
-        `${firstDrop.bossName} de ${firstDrop.player}`,
-        {
-          targetId: createdAt,
-          metadata: [
-            meta("Boss", firstDrop.bossName),
-            meta("Personagem", firstDrop.player),
-            meta("Sessao", createdAt),
-            meta("Drops removidos", data.drops.filter((drop) => drop.createdAt === createdAt).length),
-          ],
-        },
-      ),
-    );
   }
 
   function removeLootSession(createdAt: string) {
@@ -1138,7 +1090,6 @@ function useAppDataState() {
     markDuo,
     resetDuo,
     saveLootSession,
-    undoLastLoot,
     removeLootSession,
     saveHuntSession,
     removeHunt,
