@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Crown, Gem, Map, Swords, Trash2, Trophy, type LucideIcon } from "lucide-react";
+import { CalendarDays, Crown, Gem, Map, Swords, Trophy, type LucideIcon } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import type { Feat, FeatType } from "@/lib/types";
 
@@ -10,13 +10,7 @@ const typeIcons: Record<FeatType, LucideIcon> = {
   Conquista: Trophy,
 };
 
-export function RecordCard({
-  feat,
-  onRemove,
-}: {
-  feat: Feat;
-  onRemove?: (id: string) => void;
-}) {
+export function RecordCard({ feat }: { feat: Feat }) {
   const Icon = typeIcons[feat.type];
 
   return (
@@ -26,16 +20,6 @@ export function RecordCard({
           <Icon size={18} />
           <span>{feat.type}</span>
         </div>
-        {onRemove ? (
-          <button
-            type="button"
-            className="iconButton"
-            onClick={() => onRemove(feat.id)}
-            title="Remover"
-          >
-            <Trash2 size={17} />
-          </button>
-        ) : null}
       </div>
       <h3>{feat.title}</h3>
       <div className="meta">
