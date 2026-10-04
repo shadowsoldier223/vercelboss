@@ -43,16 +43,6 @@ type ActivityOptions = {
 };
 const sessionEventName = "closedboss-session-change";
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "boss";
-}
-
 function logValue(value: unknown) {
   if (Array.isArray(value)) return value.length ? value.join(", ") : "vazio";
   if (typeof value === "number") return value.toLocaleString("pt-BR");
@@ -578,61 +568,53 @@ function useAppDataState() {
     });
   }
 
-  function addLootBoss(input: LootBossInput) {
+  async function addLootBoss(input: LootBossInput) {
     if (!isAdmin || !input.label.trim()) return false;
 
-    const label = input.label.trim();
-    const baseKey = slugify(label);
-    const alreadyExists = data.lootBosses.some((boss) => boss.label.toLowerCase() === label.toLowerCase());
+    const response = await fetch("/api/bosses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).catch(() => null);
+    const payload = response?.ok ? ((await response.json()) as { boss?: LootBoss }) : null;
+    const boss = payload?.boss;
 
-    if (alreadyExists) return false;
+    if (!boss) return false;
 
-    setData((current) => {
-      const keys = new Set(current.lootBosses.map((boss) => boss.key));
-      let key = baseKey;
-      let index = 2;
-
-      while (keys.has(key)) {
-        key = `${baseKey}-${index}`;
-        index += 1;
-      }
-
-      return withActivity(
+    setData((current) =>
+      withActivity(
         current,
-        {
-          lootBosses: [
-            ...current.lootBosses,
-            {
-              key,
-              label,
-              mode: input.mode,
-              drops: [],
-            },
-          ],
-        },
+        { lootBosses: [...current.lootBosses, boss] },
         "criou",
         "Boss",
-        label,
+        boss.label,
         {
-          targetId: key,
-          metadata: [meta("Tipo", input.mode === "duo" ? "Duo" : "Solo"), meta("Chave", key)],
+          targetId: boss.key,
+          metadata: [meta("Tipo", boss.mode === "duo" ? "Duo" : "Solo"), meta("Chave", boss.key)],
         },
-      );
-    });
+      ),
+    );
 
     return true;
   }
 
-  function updateLootBoss(key: string, patch: Partial<LootBossInput>) {
-    if (!isAdmin) return;
+  async function updateLootBoss(key: string, patch: Partial<LootBossInput>) {
+    if (!isAdmin) return false;
+
+    const response = await fetch("/api/bosses", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, patch }),
+    }).catch(() => null);
+    const payload = response?.ok ? ((await response.json()) as { boss?: LootBoss }) : null;
+    const updated = payload?.boss;
+
+    if (!updated) return false;
 
     setData((current) => {
       const boss = current.lootBosses.find((entry) => entry.key === key);
 
       if (!boss) return current;
-
-      const nextLabel = patch.label !== undefined ? patch.label.trim() || boss.label : boss.label;
-      const nextMode = patch.mode ?? boss.mode;
 
       return withActivity(
         current,
@@ -641,26 +623,36 @@ function useAppDataState() {
             entry.key === key
               ? {
                   ...entry,
-                  label: nextLabel,
-                  mode: nextMode,
+                  ...updated,
                 }
               : entry,
           ),
         },
         "editou",
         "Boss",
-        nextLabel,
+        updated.label,
         {
           targetId: key,
           metadata: [meta("Chave", key)],
-          changes: compactChanges([change("Nome", boss.label, nextLabel), change("Tipo", boss.mode, nextMode)]),
+          changes: compactChanges([change("Nome", boss.label, updated.label), change("Tipo", boss.mode, updated.mode)]),
         },
       );
     });
+
+    return true;
   }
 
-  function removeLootBoss(key: string) {
-    if (!isAdmin) return;
+  async function removeLootBoss(key: string) {
+    if (!isAdmin) return false;
+
+    const response = await fetch("/api/bosses", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+      keepalive: true,
+    }).catch(() => null);
+
+    if (!response?.ok) return false;
 
     setData((current) => {
       const boss = current.lootBosses.find((entry) => entry.key === key);
@@ -679,6 +671,8 @@ function useAppDataState() {
         },
       );
     });
+
+    return true;
   }
 
   function markDuo(id: string, status: Exclude<DuoStatus, null>) {
