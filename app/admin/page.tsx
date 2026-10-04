@@ -114,9 +114,9 @@ export default function AdminPage() {
   }, [data.activityLogs]);
   const lastLog = data.activityLogs[0];
 
-  async function submitBoss(event: FormEvent<HTMLFormElement>) {
+  function submitBoss(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const created = await addLootBoss({ label: bossTitle, mode: bossMode });
+    const created = addLootBoss({ label: bossTitle, mode: bossMode });
 
     if (!created) {
       setMessage("Nao foi possivel criar esse boss.");
@@ -343,12 +343,12 @@ export default function AdminPage() {
                     <Crown size={17} />
                     <strong>{boss.label}</strong>
                   </div>
-                  <input defaultValue={boss.label} onBlur={(event) => void updateLootBoss(boss.key, { label: event.target.value })} />
-                  <select value={boss.mode} onChange={(event) => void updateLootBoss(boss.key, { mode: event.target.value as LootBoss["mode"] })}>
+                  <input defaultValue={boss.label} onBlur={(event) => updateLootBoss(boss.key, { label: event.target.value })} />
+                  <select value={boss.mode} onChange={(event) => updateLootBoss(boss.key, { mode: event.target.value as LootBoss["mode"] })}>
                     <option value="solo">Solo</option>
                     <option value="duo">Duo</option>
                   </select>
-                  <button type="button" className="secondaryButton" onClick={() => void removeLootBoss(boss.key)}>
+                  <button type="button" className="secondaryButton" onClick={() => removeLootBoss(boss.key)}>
                     <Trash2 size={16} />
                     Remover
                   </button>

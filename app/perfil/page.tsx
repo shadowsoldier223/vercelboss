@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BarChart3, Camera, Shield, Swords, Trophy, UserRound } from "lucide-react";
+import { PasswordPanel } from "@/components/PasswordPanel";
 import { StatCard } from "@/components/StatCard";
 import { formatDate, formatNumber, formatSignedNumber } from "@/lib/format";
 import { useAppData } from "@/lib/useAppData";
@@ -143,6 +144,10 @@ export default function PerfilPage() {
           </div>
           {!recentImages.length ? <p className="mutedText">Os prints das hunts aparecem aqui.</p> : null}
         </section>
+      </section>
+
+      <section className="profileGrid">
+        <PasswordPanel />
       </section>
     </>
   );

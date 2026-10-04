@@ -7,8 +7,14 @@ export const previousStorageKey = "closeboss-state";
 export const oldStorageKey = "tibia-feats";
 export const duoCooldownMs = 20 * 60 * 60 * 1000;
 
+/** Data de hoje (YYYY-MM-DD) no fuso de Sao Paulo, o mesmo usado em formatDate. */
 export function today() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export const starterDuos: Duo[] = [

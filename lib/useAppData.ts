@@ -43,6 +43,16 @@ type ActivityOptions = {
 };
 const sessionEventName = "closedboss-session-change";
 
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "boss";
+}
+
 function logValue(value: unknown) {
   if (Array.isArray(value)) return value.length ? value.join(", ") : "vazio";
   if (typeof value === "number") return value.toLocaleString("pt-BR");
@@ -94,35 +104,43 @@ function readStoredData(): AppData {
   return defaultData;
 }
 
+export type SyncStatus = "local" | "synced" | "saving" | "error";
+
+const saveDebounceMs = 220;
+const saveRetryMs = 8000;
+const pollIntervalMs = 10000;
+
+type StatePayload = {
+  data?: Partial<AppData>;
+  initialized?: boolean;
+  remote?: boolean;
+};
+
 function useAppDataState() {
   const [data, setData] = useState<AppData>(defaultData);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [remoteSyncAllowed, setRemoteSyncAllowed] = useState(false);
-  const dataRef = useRef(data);
-  const dataVersionRef = useRef(0);
-  const syncPendingRef = useRef(false);
-  const syncQueueRef = useRef(Promise.resolve());
-  const syncCountRef = useRef(0);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
+  const [retryTick, setRetryTick] = useState(0);
+  // Estado mais recente, para callbacks assincronos compararem sem depender de closures velhas.
+  const dataRef = useRef<AppData>(defaultData);
+  // JSON do ultimo estado que sabemos estar igual ao do servidor. Serve para:
+  //  - nao reenviar dados que acabaram de chegar do servidor;
+  //  - nao deixar o refresh automatico sobrescrever alteracoes ainda nao salvas.
+  const syncedJsonRef = useRef("");
 
   useEffect(() => {
     dataRef.current = data;
-    dataVersionRef.current += 1;
   }, [data]);
 
   const refreshData = useCallback(async () => {
-    if (syncPendingRef.current) return false;
-
     const response = await fetch("/api/state", { cache: "no-store" }).catch(() => null);
 
     if (!response?.ok) return false;
 
-    const payload = (await response.json()) as {
-      data?: Partial<AppData>;
-      initialized?: boolean;
-      remote?: boolean;
-    };
+    const payload = (await response.json()) as StatePayload;
     const hasRemoteStore = Boolean(payload.remote);
 
     setRemoteEnabled(hasRemoteStore);
@@ -131,8 +149,15 @@ function useAppDataState() {
     if (!hasRemoteStore) return false;
 
     const nextData = normalizeAppData(payload.data ?? null);
+    const nextJson = JSON.stringify(nextData);
+    const currentJson = JSON.stringify(dataRef.current);
 
-    setData((current) => (JSON.stringify(current) === JSON.stringify(nextData) ? current : nextData));
+    // Alteracoes locais ainda nao enviadas (ou em envio) tem prioridade sobre o servidor.
+    if (currentJson !== syncedJsonRef.current) return true;
+
+    syncedJsonRef.current = nextJson;
+
+    if (nextJson !== currentJson) setData(nextData);
 
     return true;
   }, []);
@@ -144,29 +169,32 @@ function useAppDataState() {
       try {
         const localData = readStoredData();
         let nextData = localData;
+        let serverJson = "";
 
         try {
           const response = await fetch("/api/state", { cache: "no-store" });
 
           if (response.ok) {
-            const payload = (await response.json()) as {
-              data?: Partial<AppData>;
-              initialized?: boolean;
-              remote?: boolean;
-            };
+            const payload = (await response.json()) as StatePayload;
             const hasRemoteStore = Boolean(payload.remote);
 
             setRemoteEnabled(hasRemoteStore);
             setRemoteSyncAllowed(Boolean(hasRemoteStore && payload.initialized));
 
+            if (hasRemoteStore) {
+              serverJson = JSON.stringify(normalizeAppData(payload.data ?? null));
+            }
+
             if (!hasRemoteStore) {
               nextData = localData;
             } else if (payload.initialized === false && hasCustomLocalData(localData)) {
+              // Servidor vazio e dados locais existentes: o efeito de salvamento envia
+              // os dados locais assim que houver sessao (serverJson difere do local).
               await fetch("/api/state", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(localData),
-              });
+              }).catch(() => null);
               setRemoteSyncAllowed(true);
               nextData = localData;
             } else {
@@ -179,13 +207,15 @@ function useAppDataState() {
 
         const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
         const sessionPayload = sessionResponse?.ok ? ((await sessionResponse.json()) as { user?: AppUser | null }) : null;
-        if (!cancelled) {
-          setData(nextData);
-          setCurrentUser(sessionPayload?.user ?? null);
+        const storedSession = window.localStorage.getItem(sessionKey);
+        const storedUser = nextData.users.find((user) => user.id === storedSession);
+        const fallbackUser = storedUser ? { id: storedUser.id, username: storedUser.username, role: storedUser.role } : null;
 
-          if (!sessionPayload?.user) {
-            window.localStorage.removeItem(sessionKey);
-          }
+        if (!cancelled) {
+          syncedJsonRef.current = serverJson;
+          setSyncStatus(serverJson ? "synced" : "local");
+          setData(nextData);
+          setCurrentUser(sessionPayload?.user ?? fallbackUser);
         }
       } catch {
         if (!cancelled) {
@@ -215,53 +245,85 @@ function useAppDataState() {
     }
   }, [data, hasLoaded]);
 
+  // Salvamento remoto: so envia quando ha diferenca real, nao desliga a sincronizacao
+  // em caso de erro (tenta de novo) e ignora requisicoes canceladas por uma edicao mais nova.
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled || (!remoteSyncAllowed && !hasCustomLocalData(data))) return;
 
-    const sentVersion = dataVersionRef.current;
-    const snapshot = data;
+    const json = JSON.stringify(data);
 
-    syncCountRef.current += 1;
-    syncPendingRef.current = true;
+    if (json === syncedJsonRef.current) {
+      setSyncStatus((status) => (status === "saving" || status === "error" ? "synced" : status));
+      return;
+    }
 
-    const write = async () => {
-      try {
-        const response = await fetch("/api/state", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(snapshot),
+    const controller = new AbortController();
+    let retryTimer: number | undefined;
+    const timeout = window.setTimeout(() => {
+      setSyncStatus("saving");
+
+      void fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: json,
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (response.status === 401) {
+            // Sessao expirada: repetir nao adianta ate o usuario entrar de novo.
+            setSyncStatus("error");
+            return;
+          }
+
+          if (!response.ok) throw new Error("save failed");
+
+          const payload = (await response.json()) as { data?: Partial<AppData> };
+          const synced = payload.data ? normalizeAppData(payload.data) : null;
+          const syncedJson = synced ? JSON.stringify(synced) : json;
+          const unchangedSinceSend = JSON.stringify(dataRef.current) === json;
+
+          if (unchangedSinceSend) {
+            syncedJsonRef.current = syncedJson;
+            if (synced && syncedJson !== json) setData(synced);
+          } else {
+            // O usuario editou durante o envio: o proximo ciclo envia o estado novo.
+            syncedJsonRef.current = json;
+          }
+
+          setRemoteSyncAllowed(true);
+          setSyncStatus("synced");
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+
+          setSyncStatus("error");
+          retryTimer = window.setTimeout(() => setRetryTick((tick) => tick + 1), saveRetryMs);
         });
+    }, saveDebounceMs);
 
-        if (!response.ok) {
-          throw new Error("Nao foi possivel sincronizar os dados.");
-        }
-
-        const payload = (await response.json()) as { data?: Partial<AppData> };
-        const synced = payload.data ? normalizeAppData(payload.data) : null;
-
-        if (synced && sentVersion === dataVersionRef.current && JSON.stringify(synced) !== JSON.stringify(dataRef.current)) {
-          setData(synced);
-        }
-
-        setRemoteSyncAllowed(true);
-      } catch {
-        setRemoteEnabled(false);
-      } finally {
-        syncCountRef.current -= 1;
-        syncPendingRef.current = syncCountRef.current > 0;
-      }
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearTimeout(retryTimer);
+      controller.abort();
     };
+  }, [currentUser, data, hasLoaded, remoteEnabled, remoteSyncAllowed, retryTick]);
 
-    syncQueueRef.current = syncQueueRef.current.catch(() => undefined).then(write);
-    void syncQueueRef.current;
-  }, [currentUser, data, hasLoaded, remoteEnabled, remoteSyncAllowed]);
+  // Avisa antes de fechar a aba se ainda ha algo sem salvar.
+  useEffect(() => {
+    if (syncStatus !== "saving" && syncStatus !== "error") return;
+
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [syncStatus]);
 
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled) return;
-
-    function refreshVisibleData() {
-      void refreshData();
-    }
 
     function refreshWhenVisible() {
       if (document.visibilityState === "visible") {
@@ -269,14 +331,14 @@ function useAppDataState() {
       }
     }
 
-    const interval = window.setInterval(refreshVisibleData, 10000);
+    const interval = window.setInterval(refreshWhenVisible, pollIntervalMs);
 
-    window.addEventListener("focus", refreshVisibleData);
+    window.addEventListener("focus", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       window.clearInterval(interval);
-      window.removeEventListener("focus", refreshVisibleData);
+      window.removeEventListener("focus", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [currentUser, hasLoaded, refreshData, remoteEnabled]);
@@ -389,6 +451,20 @@ function useAppDataState() {
     window.localStorage.setItem(sessionKey, user.id);
     window.dispatchEvent(new Event(sessionEventName));
     return true;
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+    const response = await fetch("/api/auth/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }).catch(() => null);
+
+    if (!response) return { ok: false, error: "Sem conexao com o servidor." };
+
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+    return response.ok ? { ok: true } : { ok: false, error: payload.error ?? "Nao foi possivel alterar a senha." };
   }
 
   async function logout() {
@@ -550,53 +626,61 @@ function useAppDataState() {
     });
   }
 
-  async function addLootBoss(input: LootBossInput) {
+  function addLootBoss(input: LootBossInput) {
     if (!isAdmin || !input.label.trim()) return false;
 
-    const response = await fetch("/api/bosses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    }).catch(() => null);
-    const payload = response?.ok ? ((await response.json()) as { boss?: LootBoss }) : null;
-    const boss = payload?.boss;
+    const label = input.label.trim();
+    const baseKey = slugify(label);
+    const alreadyExists = data.lootBosses.some((boss) => boss.label.toLowerCase() === label.toLowerCase());
 
-    if (!boss) return false;
+    if (alreadyExists) return false;
 
-    setData((current) =>
-      withActivity(
+    setData((current) => {
+      const keys = new Set(current.lootBosses.map((boss) => boss.key));
+      let key = baseKey;
+      let index = 2;
+
+      while (keys.has(key)) {
+        key = `${baseKey}-${index}`;
+        index += 1;
+      }
+
+      return withActivity(
         current,
-        { lootBosses: [...current.lootBosses, boss] },
+        {
+          lootBosses: [
+            ...current.lootBosses,
+            {
+              key,
+              label,
+              mode: input.mode,
+              drops: [],
+            },
+          ],
+        },
         "criou",
         "Boss",
-        boss.label,
+        label,
         {
-          targetId: boss.key,
-          metadata: [meta("Tipo", boss.mode === "duo" ? "Duo" : "Solo"), meta("Chave", boss.key)],
+          targetId: key,
+          metadata: [meta("Tipo", input.mode === "duo" ? "Duo" : "Solo"), meta("Chave", key)],
         },
-      ),
-    );
+      );
+    });
 
     return true;
   }
 
-  async function updateLootBoss(key: string, patch: Partial<LootBossInput>) {
-    if (!isAdmin) return false;
-
-    const response = await fetch("/api/bosses", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, patch }),
-    }).catch(() => null);
-    const payload = response?.ok ? ((await response.json()) as { boss?: LootBoss }) : null;
-    const updated = payload?.boss;
-
-    if (!updated) return false;
+  function updateLootBoss(key: string, patch: Partial<LootBossInput>) {
+    if (!isAdmin) return;
 
     setData((current) => {
       const boss = current.lootBosses.find((entry) => entry.key === key);
 
       if (!boss) return current;
+
+      const nextLabel = patch.label !== undefined ? patch.label.trim() || boss.label : boss.label;
+      const nextMode = patch.mode ?? boss.mode;
 
       return withActivity(
         current,
@@ -605,36 +689,26 @@ function useAppDataState() {
             entry.key === key
               ? {
                   ...entry,
-                  ...updated,
+                  label: nextLabel,
+                  mode: nextMode,
                 }
               : entry,
           ),
         },
         "editou",
         "Boss",
-        updated.label,
+        nextLabel,
         {
           targetId: key,
           metadata: [meta("Chave", key)],
-          changes: compactChanges([change("Nome", boss.label, updated.label), change("Tipo", boss.mode, updated.mode)]),
+          changes: compactChanges([change("Nome", boss.label, nextLabel), change("Tipo", boss.mode, nextMode)]),
         },
       );
     });
-
-    return true;
   }
 
-  async function removeLootBoss(key: string) {
-    if (!isAdmin) return false;
-
-    const response = await fetch("/api/bosses", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key }),
-      keepalive: true,
-    }).catch(() => null);
-
-    if (!response?.ok) return false;
+  function removeLootBoss(key: string) {
+    if (!isAdmin) return;
 
     setData((current) => {
       const boss = current.lootBosses.find((entry) => entry.key === key);
@@ -653,8 +727,6 @@ function useAppDataState() {
         },
       );
     });
-
-    return true;
   }
 
   function markDuo(id: string, status: Exclude<DuoStatus, null>) {
@@ -677,6 +749,8 @@ function useAppDataState() {
                   status,
                   markedAt: markedAt.toISOString(),
                   cooldownUntil: new Date(markedAt.getTime() + duoCooldownMs).toISOString(),
+                  kills: (entry.kills ?? 0) + (status === "done" ? 1 : 0),
+                  fails: (entry.fails ?? 0) + (status === "fail" ? 1 : 0),
                 }
               : entry,
           ),
@@ -1103,10 +1177,12 @@ function useAppDataState() {
     hasLoaded,
     currentUser,
     isAdmin,
+    syncStatus,
     stats,
     refreshData,
     login,
     logout,
+    changePassword,
     removeFeat,
     updateFeat,
     addDuo,

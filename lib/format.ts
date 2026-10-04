@@ -28,6 +28,17 @@ export function formatRemainingTime(isoDate: string | null, now: number = Date.n
   return `${hours}h ${minutes}min`;
 }
 
+/** "hoje as 14:30", "amanha as 08:10" ou "05/10/2026 as 08:10" (fuso de Sao Paulo). */
+export function formatReleaseAt(isoDate: string, now: number = Date.now()) {
+  const day = formatDate(isoDate);
+  const time = formatTime(isoDate);
+
+  if (day === formatDate(new Date(now).toISOString())) return `hoje as ${time}`;
+  if (day === formatDate(new Date(now + 24 * 60 * 60 * 1000).toISOString())) return `amanha as ${time}`;
+
+  return `${day} as ${time}`;
+}
+
 export function isCooldownActive(isoDate: string | null, now: number = Date.now()) {
   return Boolean(isoDate && new Date(isoDate).getTime() > now);
 }

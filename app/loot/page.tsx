@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Gem, History, Layers, Search, Shield, Sparkles, Users } from "lucide-react";
+import { Download, Gem, History, Layers, Search, Shield, Sparkles, Users } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
+import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatTime } from "@/lib/format";
 import { buildLootSessions, buildPlayerLoot, categoryOrder, filterLootSessions } from "@/lib/lootView";
 import { useAppData } from "@/lib/useAppData";
@@ -45,6 +46,40 @@ export default function LootPage() {
   }, [sessions]);
 
   const hasFilters = Boolean(query.trim() || bossKey);
+
+  function exportCsv() {
+    // Evita que planilhas interpretem textos iniciados por = + - @ como formulas.
+    const cell = (value: string) => {
+      const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+    const rows = [["Data", "Boss", "Jogador", "Item", "Quantidade", "Raridade", "Registrado por", "Registrado em"]];
+
+    for (const session of filtered) {
+      for (const item of session.items) {
+        rows.push([
+          formatDate(session.date),
+          session.bossName,
+          session.player,
+          item.item,
+          String(item.quantity),
+          item.category,
+          session.registeredBy,
+          `${formatDate(session.createdAt)} ${formatTime(session.createdAt)}`,
+        ]);
+      }
+    }
+
+    const csv = `\uFEFF${rows.map((row) => row.map(cell).join(";")).join("\r\n")}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `loot-${today()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   function changeBoss(value: string) {
     setBossKey(value);
@@ -118,6 +153,10 @@ export default function LootPage() {
             </option>
           ))}
         </select>
+        <button type="button" className="secondaryButton lootExport" onClick={exportCsv} disabled={!filtered.length} title="Baixar os registros filtrados em CSV">
+          <Download size={16} />
+          CSV
+        </button>
         <div className="adminTabs" role="tablist" aria-label="Modo de visualizacao">
           <button type="button" role="tab" aria-selected={view === "jogadores"} className={view === "jogadores" ? "active" : ""} onClick={() => setView("jogadores")}>
             Por jogador

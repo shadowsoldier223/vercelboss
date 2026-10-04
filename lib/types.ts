@@ -54,6 +54,10 @@ export type Duo = {
   status: DuoStatus;
   markedAt: string | null;
   cooldownUntil: string | null;
+  /** Total de bosses concluidos (OK) por esta dupla. Ausente em dados antigos = 0. */
+  kills?: number;
+  /** Total de fails registrados por esta dupla. Ausente em dados antigos = 0. */
+  fails?: number;
 };
 
 export type LootDrop = {

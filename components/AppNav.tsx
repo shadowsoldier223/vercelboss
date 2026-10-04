@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, UserRound, Users } from "lucide-react";
+import { BarChart3, Cloud, CloudOff, CloudUpload, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, UserRound, Users } from "lucide-react";
 import { useAppData } from "@/lib/useAppData";
 
 const navItems = [
@@ -18,9 +18,16 @@ const navItems = [
 
 const adminNavItem = { href: "/admin", label: "Admin", icon: UserCog };
 
+const syncLabels = {
+  synced: { text: "Salvo", title: "Tudo sincronizado com o servidor.", icon: Cloud },
+  saving: { text: "Salvando", title: "Enviando alteracoes para o servidor.", icon: CloudUpload },
+  error: { text: "Sem salvar", title: "Falha ao salvar. Vamos tentar de novo automaticamente. Nao feche a aba.", icon: CloudOff },
+} as const;
+
 export function AppNav() {
   const pathname = usePathname();
-  const { currentUser, isAdmin, logout } = useAppData();
+  const { currentUser, isAdmin, logout, syncStatus } = useAppData();
+  const sync = currentUser && syncStatus !== "local" ? syncLabels[syncStatus] : null;
 
   async function handleLogout() {
     await logout();
@@ -58,6 +65,12 @@ export function AppNav() {
       <div className="accountBox">
         {currentUser ? (
           <>
+            {sync ? (
+              <span className={`syncBadge ${syncStatus}`} title={sync.title} role="status">
+                <sync.icon size={14} />
+                {sync.text}
+              </span>
+            ) : null}
             <span className="accountName">{currentUser.username}</span>
             <button type="button" className="navIconButton" onClick={handleLogout} title="Sair">
               <LogOut size={16} />

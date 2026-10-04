@@ -21,9 +21,9 @@ export default function BossesPage() {
     );
   }, [data.lootBosses, query]);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const created = await addLootBoss({ label, mode });
+    const created = addLootBoss({ label, mode });
 
     if (!created) {
       setMessage("Nao foi possivel criar esse boss.");
@@ -33,14 +33,6 @@ export default function BossesPage() {
     setLabel("");
     setMode("solo");
     setMessage("Boss criado e disponivel para registrar loot.");
-  }
-
-  async function removeBoss(key: string) {
-    const removed = await removeLootBoss(key);
-
-    if (!removed) {
-      setMessage("Nao foi possivel remover o boss. Tente novamente.");
-    }
   }
 
   if (!currentUser) {
@@ -132,7 +124,7 @@ export default function BossesPage() {
                   <input
                     className="inlineEdit"
                     defaultValue={boss.label}
-                    onBlur={(event) => void updateLootBoss(boss.key, { label: event.target.value })}
+                    onBlur={(event) => updateLootBoss(boss.key, { label: event.target.value })}
                   />
                 ) : (
                   <strong>{boss.label}</strong>
@@ -143,13 +135,13 @@ export default function BossesPage() {
                 <div className="rowActions">
                   <select
                     value={boss.mode}
-                    onChange={(event) => void updateLootBoss(boss.key, { mode: event.target.value as LootBoss["mode"] })}
+                    onChange={(event) => updateLootBoss(boss.key, { mode: event.target.value as LootBoss["mode"] })}
                     title="Tipo"
                   >
                     <option value="solo">Solo</option>
                     <option value="duo">Duo</option>
                   </select>
-                  <button type="button" title="Remover" onClick={() => void removeBoss(boss.key)}>
+                  <button type="button" title="Remover" onClick={() => removeLootBoss(boss.key)}>
                     <Trash2 size={16} />
                   </button>
                 </div>

@@ -1822,7 +1822,7 @@ h3 {
 /* ---- Aba Loot (somente leitura) ---- */
 .lootToolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto auto;
   gap: 10px;
   align-items: center;
 }
@@ -1954,4 +1954,48 @@ h3 {
   .lootLogMeta {
     text-align: left;
   }
+}
+
+.lootExport {
+  width: auto;
+  margin-top: 0;
+  min-height: 38px;
+}
+
+.lootExport:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.duoRow p.duoRecord {
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* ---- Indicador de sincronizacao (barra superior) ---- */
+.syncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.syncBadge.synced {
+  color: #8ff2c8;
+}
+
+.syncBadge.saving {
+  color: var(--amber-2);
+}
+
+.syncBadge.error {
+  border-color: rgba(226, 93, 79, 0.5);
+  color: #ff9d92;
 }

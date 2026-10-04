@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useMemo } from "react";
 import { ArrowRight, BarChart3, Camera, Crown, Gem, Sparkles, Swords, Trophy, Users } from "lucide-react";
 import { LoginPanel } from "@/components/LoginPanel";
 import { RecordCard } from "@/components/RecordCard";
 import { StatCard } from "@/components/StatCard";
-import { formatDate, formatNumber, formatRemainingTime, formatSignedNumber, isCooldownActive } from "@/lib/format";
+import { formatDate, formatNumber, formatReleaseAt, formatRemainingTime, formatSignedNumber, isCooldownActive } from "@/lib/format";
+import { buildLootSessions, categoryOrder } from "@/lib/lootView";
 import { useAppData } from "@/lib/useAppData";
 
 const tools = [
@@ -37,7 +39,18 @@ const tools = [
 ];
 
 export default function DashboardPage() {
-  const { currentUser, data, hasLoaded, isAdmin, stats } = useAppData();
+  const { currentUser, data, hasLoaded, isAdmin } = useAppData();
+  const lootSessions = useMemo(() => buildLootSessions(data.drops), [data.drops]);
+  // Ultimos drops raros (raro, muito raro ou unico), ignorando bonus de boss.
+  const recentRare = useMemo(() => {
+    return lootSessions
+      .flatMap((session) =>
+        session.items
+          .filter((item) => !item.bonus && categoryOrder(item.category) <= 2)
+          .map((item) => ({ ...item, player: session.player, bossName: session.bossName, date: session.date, key: `${session.id}-${item.item}` })),
+      )
+      .slice(0, 6);
+  }, [lootSessions]);
   const recentFeats = data.feats.slice(0, 4);
   const cooldownDuos = data.duos.filter((duo) => isCooldownActive(duo.cooldownUntil));
   const readyDuos = data.duos.length - cooldownDuos.length;
@@ -101,7 +114,7 @@ export default function DashboardPage() {
         <StatCard icon={BarChart3} label="Balance hunts" value={formatSignedNumber(visibleBalance)} />
         <StatCard icon={Swords} label="Hunts registradas" value={visibleHunts.length} />
         <StatCard icon={Camera} label="Prints salvos" value={totalImages} />
-        <StatCard icon={Gem} label="Drops salvos" value={stats.drops} />
+        <StatCard icon={Gem} label="Registros de loot" value={lootSessions.length} />
       </section>
 
       <section className="toolGrid">
@@ -176,7 +189,7 @@ export default function DashboardPage() {
             </div>
             {cooldownDuos.slice(0, 6).map((duo) => (
               <div className="listRow" key={duo.id}>
-                <span>{duo.left} + {duo.right}</span>
+                <span>{`${duo.left} + ${duo.right} (${formatReleaseAt(duo.cooldownUntil ?? "")})`}</span>
                 <strong>{formatRemainingTime(duo.cooldownUntil)}</strong>
               </div>
             ))}
@@ -186,6 +199,29 @@ export default function DashboardPage() {
       </section>
 
       <section className="dashboardGrid">
+        <section className="sectionBlock">
+          <div className="sectionTitle">
+            <div>
+              <span className="eyebrow">Loot</span>
+              <h2>Drops raros recentes</h2>
+            </div>
+            <Gem size={22} />
+          </div>
+          <div className="compactList">
+            {recentRare.map((drop) => (
+              <div className="listRow" key={drop.key}>
+                <span>{`${formatNumber(drop.quantity)}x ${drop.item} / ${drop.player} (${drop.bossName}, ${formatDate(drop.date)})`}</span>
+                <strong>{drop.category}</strong>
+              </div>
+            ))}
+            {!recentRare.length ? <p className="mutedText">Nenhum drop raro registrado ainda.</p> : null}
+            <Link href="/loot" className="toolAction">
+              <span>Ver todo o loot</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+        </section>
+
         <section className="sectionBlock">
           <div className="sectionTitle">
             <div>

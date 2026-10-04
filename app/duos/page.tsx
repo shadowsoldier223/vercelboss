@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Clock, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
 import { LootRegistrationModal } from "@/components/LootRegistrationModal";
 import { StatCard } from "@/components/StatCard";
-import { formatDate, formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
+import { formatDate, formatReleaseAt, formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
 import type { Duo } from "@/lib/types";
 import { useAppData } from "@/lib/useAppData";
 import { useNow } from "@/lib/useNow";
@@ -20,10 +20,11 @@ function describeDuo(duo: Duo, now: number) {
     badge: cooling ? label : "Pronto",
     tone: cooling ? (duo.status === "fail" ? "fail" : "done") : "ready",
     text: cooling
-      ? `${markedAt} // libera em ${formatRemainingTime(duo.cooldownUntil, now)}`
+      ? `${markedAt} // libera em ${formatRemainingTime(duo.cooldownUntil, now)} (${formatReleaseAt(duo.cooldownUntil ?? "", now)})`
       : markedAt
         ? `Ultimo: ${markedAt} // pronto agora`
         : "Pronto agora",
+    record: `${duo.kills ?? 0} ${(duo.kills ?? 0) === 1 ? "kill" : "kills"} / ${duo.fails ?? 0} ${(duo.fails ?? 0) === 1 ? "fail" : "fails"}`,
   };
 }
 
@@ -50,6 +51,7 @@ export default function DuosPage() {
   }, [data.duos, now]);
 
   const cooldownCount = rows.filter((row) => row.cooling).length;
+  const nextRelease = rows.find((row) => row.cooling);
   const failCount = rows.filter((row) => row.cooling && row.duo.status === "fail").length;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -122,6 +124,12 @@ export default function DuosPage() {
         <StatCard icon={X} label="Fails em cooldown" value={failCount} />
       </section>
 
+      {nextRelease && cooldownCount === rows.length ? (
+        <p className="notice">
+          {`Nenhum duo pronto agora. Proximo a liberar: ${nextRelease.duo.left} + ${nextRelease.duo.right} em ${formatRemainingTime(nextRelease.duo.cooldownUntil, now)} (${formatReleaseAt(nextRelease.duo.cooldownUntil ?? "", now)}).`}
+        </p>
+      ) : null}
+
       <section className="pageGrid duoGrid">
         {isAdmin ? (
           <aside className="panel">
@@ -165,12 +173,13 @@ export default function DuosPage() {
           </div>
 
           <div className="duoList">
-            {rows.map(({ duo, badge, tone, text }) => (
+            {rows.map(({ duo, badge, tone, text, record }) => (
               <article className="duoRow" key={duo.id}>
                 <div>
                   <span className={`duoBadge ${tone}`}>{badge}</span>
                   <strong>{duo.left} + {duo.right}</strong>
                   <p>{text}</p>
+                  <p className="duoRecord">{record}</p>
                 </div>
                 {isAdmin ? (
                   <div className="rowActions">

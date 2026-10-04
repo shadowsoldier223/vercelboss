@@ -1,4 +1,4 @@
-import { defaultData } from "./defaults";
+import { defaultData, today } from "./defaults";
 import { parseHuntingAnalyser } from "./hunts";
 import type { AppData, HuntImage, HuntSession } from "./types";
 
@@ -20,7 +20,7 @@ function normalizeHunt(hunt: Partial<HuntSession>): HuntSession {
     userName: hunt.userName ?? "admin",
     title: hunt.title ?? "Hunt registrada",
     character: hunt.character ?? "",
-    date: hunt.date ?? new Date().toISOString().slice(0, 10),
+    date: hunt.date ?? today(),
     duration: parsed?.duration ?? hunt.duration ?? "",
     loot: parsed?.loot ?? hunt.loot ?? 0,
     supplies: parsed?.supplies ?? hunt.supplies ?? 0,
