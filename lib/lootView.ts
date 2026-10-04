@@ -34,9 +34,25 @@ export type PlayerLoot = {
   player: string;
   sessions: number;
   bosses: string[];
+  /** Usuarios (contas) que registraram loot para este personagem/dupla. */
+  registeredBy: string[];
   quantity: number;
+  /** Quantidade de itens raro ou melhor (sem bonus de boss). */
+  rare: number;
   lastAt: string;
   items: PlayerItemTotal[];
+};
+
+export type UserLoot = {
+  key: string;
+  user: string;
+  sessions: number;
+  quantity: number;
+  rare: number;
+  lastAt: string;
+  /** Itens somados de todos os personagens do usuario (mesmo boss + item = uma linha). */
+  items: PlayerItemTotal[];
+  characters: PlayerLoot[];
 };
 
 const categoryRank: Record<string, number> = {
@@ -144,12 +160,13 @@ export function buildPlayerLoot(sessions: LootSessionView[]): PlayerLoot[] {
     const key = plain(session.player);
     const entry =
       players.get(key) ??
-      { key, player: session.player, sessions: 0, bosses: [], quantity: 0, lastAt: session.createdAt, items: [] };
+      { key, player: session.player, sessions: 0, bosses: [], registeredBy: [], quantity: 0, rare: 0, lastAt: session.createdAt, items: [] };
 
     entry.sessions += 1;
     entry.quantity += session.quantity;
 
     if (!entry.bosses.includes(session.bossName)) entry.bosses.push(session.bossName);
+    if (session.registeredBy && !entry.registeredBy.includes(session.registeredBy)) entry.registeredBy.push(session.registeredBy);
     if (new Date(session.createdAt).getTime() > new Date(entry.lastAt).getTime()) entry.lastAt = session.createdAt;
 
     for (const item of session.items) {
@@ -177,7 +194,47 @@ export function buildPlayerLoot(sessions: LootSessionView[]): PlayerLoot[] {
 
   for (const entry of result) {
     entry.items.sort(compareItems);
+    entry.rare = entry.items.reduce((total, item) => (!item.bonus && categoryOrder(item.category) <= 2 ? total + item.quantity : total), 0);
   }
 
   return result.sort((a, b) => b.sessions - a.sessions || b.quantity - a.quantity || a.player.localeCompare(b.player));
+}
+
+/** Agrupa por usuario (quem registrou) e, dentro de cada um, por personagem/dupla. */
+export function buildUserLoot(sessions: LootSessionView[]): UserLoot[] {
+  const groups = new Map<string, { user: string; sessions: LootSessionView[] }>();
+
+  for (const session of sessions) {
+    const user = session.registeredBy || "Sem usuario";
+    const key = plain(user);
+    const group = groups.get(key) ?? { user, sessions: [] };
+
+    group.sessions.push(session);
+    groups.set(key, group);
+  }
+
+  return Array.from(groups, ([key, group]) => {
+    const characters = buildPlayerLoot(group.sessions);
+    const items: PlayerItemTotal[] = [];
+
+    for (const item of characters.flatMap((character) => character.items)) {
+      const existing = items.find((entry) => entry.key === item.key);
+
+      if (existing) existing.quantity += item.quantity;
+      else items.push({ ...item });
+    }
+
+    items.sort(compareItems);
+
+    return {
+      key,
+      user: group.user,
+      sessions: group.sessions.length,
+      quantity: characters.reduce((total, character) => total + character.quantity, 0),
+      rare: characters.reduce((total, character) => total + character.rare, 0),
+      lastAt: group.sessions.reduce((latest, session) => (new Date(session.createdAt).getTime() > new Date(latest).getTime() ? session.createdAt : latest), group.sessions[0].createdAt),
+      items,
+      characters,
+    };
+  }).sort((a, b) => b.sessions - a.sessions || b.quantity - a.quantity || a.user.localeCompare(b.user));
 }

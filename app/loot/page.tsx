@@ -1,24 +1,147 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Download, Gem, History, Layers, Search, Shield, Sparkles, Users } from "lucide-react";
-import { StatCard } from "@/components/StatCard";
+import { ChevronDown, ChevronUp, Download, Gem, History, Search, Shield } from "lucide-react";
 import { today } from "@/lib/defaults";
 import { formatDate, formatNumber, formatTime } from "@/lib/format";
-import { buildLootSessions, buildPlayerLoot, categoryOrder, filterLootSessions } from "@/lib/lootView";
+import {
+  buildLootSessions,
+  buildPlayerLoot,
+  buildUserLoot,
+  categoryOrder,
+  filterLootSessions,
+  type PlayerItemTotal,
+  type PlayerLoot,
+} from "@/lib/lootView";
 import { useAppData } from "@/lib/useAppData";
 
-type View = "jogadores" | "historico";
+type View = "personagens" | "usuarios" | "historico";
 
 const HISTORY_PAGE_SIZE = 20;
+const PREVIEW_ITEMS = 5;
+
+const viewLabels: { key: View; label: string }[] = [
+  { key: "personagens", label: "Personagens" },
+  { key: "usuarios", label: "Usuarios" },
+  { key: "historico", label: "Historico" },
+];
+
+type ChipItem = { item: string; quantity: number; category: string; bonus?: boolean };
+
+function ItemChip({ item }: { item: ChipItem }) {
+  return (
+    <span className={`lootChip tier-${categoryOrder(item.category)}${item.bonus ? " bonus" : ""}`} title={item.bonus ? `${item.category} / bonus` : item.category}>
+      <b>{`${formatNumber(item.quantity)}x`}</b> {item.item}
+    </span>
+  );
+}
+
+/** Itens agrupados por boss, cada boss em uma linha com seus chips. */
+function BossGroups({ items }: { items: PlayerItemTotal[] }) {
+  const groups = new Map<string, PlayerItemTotal[]>();
+
+  for (const item of items) {
+    groups.set(item.bossName, [...(groups.get(item.bossName) ?? []), item]);
+  }
+
+  return (
+    <div className="lootBossGroups">
+      {Array.from(groups, ([boss, bossItems]) => (
+        <div className="lootBossRow" key={boss}>
+          <span className="lootBossName">{boss}</span>
+          <div className="lootChips">
+            {bossItems.map((item) => (
+              <ItemChip item={item} key={item.key} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LootCard({
+  name,
+  meta,
+  sessions,
+  quantity,
+  rare,
+  preview,
+  open,
+  onToggle,
+  children,
+}: {
+  name: string;
+  meta: string;
+  sessions: number;
+  quantity: number;
+  rare: number;
+  preview: PlayerItemTotal[];
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const extra = Math.max(0, preview.length - PREVIEW_ITEMS);
+
+  return (
+    <article className={`lootCard${open ? " open" : ""}`}>
+      <button type="button" className="lootCardHead" onClick={onToggle} aria-expanded={open}>
+        <span className="lootAvatar" aria-hidden="true">
+          {name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <span className="lootCardTitle">
+          <strong>{name}</strong>
+          <small>{meta}</small>
+        </span>
+        <span className="lootCardStats">
+          <span>
+            <strong>{sessions}</strong> reg.
+          </span>
+          <span>
+            <strong>{formatNumber(quantity)}</strong> itens
+          </span>
+          {rare ? (
+            <span className="rare">
+              <strong>{formatNumber(rare)}</strong> raros
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown className="lootChevron" size={18} aria-hidden="true" />
+      </button>
+
+      {!open && preview.length ? (
+        <div className="lootPreview">
+          {preview.slice(0, PREVIEW_ITEMS).map((item) => (
+            <ItemChip item={item} key={item.key} />
+          ))}
+          {extra ? <span className="lootMore">{`+${extra}`}</span> : null}
+        </div>
+      ) : null}
+
+      {open ? <div className="lootCardBody">{children}</div> : null}
+    </article>
+  );
+}
+
+function CharacterBody({ character, showUsers }: { character: PlayerLoot; showUsers: boolean }) {
+  return (
+    <>
+      <BossGroups items={character.items} />
+      {showUsers && character.registeredBy.length ? (
+        <p className="lootFootnote">{`Registrado por ${character.registeredBy.join(", ")}`}</p>
+      ) : null}
+    </>
+  );
+}
 
 export default function LootPage() {
   const { currentUser, data, hasLoaded } = useAppData();
-  const [view, setView] = useState<View>("jogadores");
+  const [view, setView] = useState<View>("personagens");
   const [query, setQuery] = useState("");
   const [bossKey, setBossKey] = useState("");
   const [visibleSessions, setVisibleSessions] = useState(HISTORY_PAGE_SIZE);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const sessions = useMemo(() => buildLootSessions(data.drops), [data.drops]);
   const bossOptions = useMemo(() => {
@@ -29,23 +152,35 @@ export default function LootPage() {
     return Array.from(bosses, ([key, label]) => ({ key, label })).sort((a, b) => a.label.localeCompare(b.label));
   }, [sessions]);
   const filtered = useMemo(() => filterLootSessions(sessions, { bossKey, query }), [sessions, bossKey, query]);
-  const players = useMemo(() => buildPlayerLoot(filtered), [filtered]);
+  const characters = useMemo(() => buildPlayerLoot(filtered), [filtered]);
+  const users = useMemo(() => buildUserLoot(filtered), [filtered]);
 
   const totals = useMemo(() => {
-    let quantity = 0;
-    let rare = 0;
+    const all = buildPlayerLoot(sessions);
 
-    for (const session of sessions) {
-      for (const item of session.items) {
-        quantity += item.quantity;
-        if (categoryOrder(item.category) <= 2) rare += item.quantity;
-      }
-    }
-
-    return { quantity, rare, players: new Set(sessions.map((session) => session.player.toLowerCase())).size };
+    return {
+      quantity: all.reduce((total, entry) => total + entry.quantity, 0),
+      rare: all.reduce((total, entry) => total + entry.rare, 0),
+      characters: all.length,
+      users: new Set(sessions.map((session) => session.registeredBy.toLowerCase())).size,
+    };
   }, [sessions]);
 
   const hasFilters = Boolean(query.trim() || bossKey);
+  const cardKeys = view === "personagens" ? characters.map((entry) => `p:${entry.key}`) : view === "usuarios" ? users.map((entry) => `u:${entry.key}`) : [];
+  const allOpen = cardKeys.length > 0 && cardKeys.every((key) => open[key]);
+
+  function toggle(key: string) {
+    setOpen((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function toggleAll() {
+    setOpen((current) => ({ ...current, ...Object.fromEntries(cardKeys.map((key) => [key, !allOpen])) }));
+  }
+
+  function resetPaging() {
+    setVisibleSessions(HISTORY_PAGE_SIZE);
+  }
 
   function exportCsv() {
     // Evita que planilhas interpretem textos iniciados por = + - @ como formulas.
@@ -54,7 +189,7 @@ export default function LootPage() {
 
       return `"${safe.replace(/"/g, '""')}"`;
     };
-    const rows = [["Data", "Boss", "Jogador", "Item", "Quantidade", "Raridade", "Registrado por", "Registrado em"]];
+    const rows = [["Data", "Boss", "Personagem", "Item", "Quantidade", "Raridade", "Usuario", "Registrado em"]];
 
     for (const session of filtered) {
       for (const item of session.items) {
@@ -79,16 +214,6 @@ export default function LootPage() {
     link.download = `loot-${today()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }
-
-  function changeBoss(value: string) {
-    setBossKey(value);
-    setVisibleSessions(HISTORY_PAGE_SIZE);
-  }
-
-  function changeQuery(value: string) {
-    setQuery(value);
-    setVisibleSessions(HISTORY_PAGE_SIZE);
   }
 
   if (!hasLoaded) {
@@ -116,36 +241,51 @@ export default function LootPage() {
 
   return (
     <section className="lootOverview">
-      <div className="sectionTitle">
+      <div className="lootHeader">
         <div>
           <span className="eyebrow">Somente leitura</span>
           <h1>Registro de loot</h1>
         </div>
-        <Gem size={24} />
-      </div>
-
-      <p className="mutedText">
-        Os drops entram aqui automaticamente quando um boss duo e concluido na aba Duos ou um boss solo e registrado na aba Bosses.
-      </p>
-
-      <div className="statGrid">
-        <StatCard icon={Layers} label="Registros" value={formatNumber(sessions.length)} />
-        <StatCard icon={Gem} label="Itens dropados" value={formatNumber(totals.quantity)} />
-        <StatCard icon={Sparkles} label="Raros ou melhores" value={formatNumber(totals.rare)} />
-        <StatCard icon={Users} label="Jogadores / duplas" value={formatNumber(totals.players)} />
+        <div className="lootPills">
+          <span className="lootPill">
+            <strong>{formatNumber(sessions.length)}</strong> registros
+          </span>
+          <span className="lootPill">
+            <strong>{formatNumber(totals.quantity)}</strong> itens
+          </span>
+          <span className="lootPill rare">
+            <strong>{formatNumber(totals.rare)}</strong> raros
+          </span>
+          <span className="lootPill">
+            <strong>{totals.characters}</strong> personagens
+          </span>
+          <span className="lootPill">
+            <strong>{totals.users}</strong> usuarios
+          </span>
+        </div>
       </div>
 
       <div className="lootToolbar">
         <div className="searchBox">
-          <Search size={18} />
+          <Search size={17} />
           <input
             value={query}
-            onChange={(event) => changeQuery(event.target.value)}
-            placeholder="Buscar jogador, boss ou item"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              resetPaging();
+            }}
+            placeholder="Buscar personagem, boss ou item"
             aria-label="Buscar loot"
           />
         </div>
-        <select value={bossKey} onChange={(event) => changeBoss(event.target.value)} aria-label="Filtrar por boss">
+        <select
+          value={bossKey}
+          onChange={(event) => {
+            setBossKey(event.target.value);
+            resetPaging();
+          }}
+          aria-label="Filtrar por boss"
+        >
           <option value="">Todos os bosses</option>
           {bossOptions.map((boss) => (
             <option value={boss.key} key={boss.key}>
@@ -153,61 +293,79 @@ export default function LootPage() {
             </option>
           ))}
         </select>
-        <button type="button" className="secondaryButton lootExport" onClick={exportCsv} disabled={!filtered.length} title="Baixar os registros filtrados em CSV">
-          <Download size={16} />
-          CSV
-        </button>
-        <div className="adminTabs" role="tablist" aria-label="Modo de visualizacao">
-          <button type="button" role="tab" aria-selected={view === "jogadores"} className={view === "jogadores" ? "active" : ""} onClick={() => setView("jogadores")}>
-            Por jogador
-          </button>
-          <button type="button" role="tab" aria-selected={view === "historico"} className={view === "historico" ? "active" : ""} onClick={() => setView("historico")}>
-            Historico
-          </button>
-        </div>
-      </div>
-
-      {view === "jogadores" ? (
-        <div className="characterLootList">
-          {players.map((entry) => (
-            <article className="characterLootCard" key={entry.key}>
-              <div className="characterLootHead">
-                <div>
-                  <strong>{entry.player}</strong>
-                  <span>{entry.bosses.join(", ")}</span>
-                </div>
-                <div className="characterLootMetrics">
-                  <span>
-                    Registros
-                    <strong>{entry.sessions}</strong>
-                  </span>
-                  <span>
-                    Bosses
-                    <strong>{entry.bosses.length}</strong>
-                  </span>
-                  <span>
-                    Itens
-                    <strong>{formatNumber(entry.quantity)}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div className="characterItemList">
-                {entry.items.map((item) => (
-                  <div className="characterItemRow" key={item.key}>
-                    <div>
-                      <strong>{item.item}</strong>
-                      <span>{item.bossName}</span>
-                    </div>
-                    <span>{`${formatNumber(item.quantity)}x`}</span>
-                    <em className={`lootTier tier-${categoryOrder(item.category)}`}>{item.bonus ? `${item.category} / bonus` : item.category}</em>
-                  </div>
-                ))}
-              </div>
-            </article>
+        <div className="lootTabs" role="tablist" aria-label="Modo de visualizacao">
+          {viewLabels.map((entry) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === entry.key}
+              className={view === entry.key ? "active" : ""}
+              onClick={() => setView(entry.key)}
+              key={entry.key}
+            >
+              {entry.label}
+            </button>
           ))}
         </div>
-      ) : (
+        {cardKeys.length > 1 ? (
+          <button type="button" className="lootIconButton" onClick={toggleAll} title={allOpen ? "Recolher tudo" : "Expandir tudo"} aria-label={allOpen ? "Recolher tudo" : "Expandir tudo"}>
+            {allOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        ) : null}
+        <button type="button" className="lootIconButton" onClick={exportCsv} disabled={!filtered.length} title="Baixar os registros filtrados em CSV" aria-label="Exportar CSV">
+          <Download size={16} />
+        </button>
+      </div>
+
+      {view === "personagens" ? (
+        <div className="lootList">
+          {characters.map((entry) => (
+            <LootCard
+              key={entry.key}
+              name={entry.player}
+              meta={entry.bosses.join(", ")}
+              sessions={entry.sessions}
+              quantity={entry.quantity}
+              rare={entry.rare}
+              preview={entry.items}
+              open={Boolean(open[`p:${entry.key}`])}
+              onToggle={() => toggle(`p:${entry.key}`)}
+            >
+              <CharacterBody character={entry} showUsers />
+            </LootCard>
+          ))}
+        </div>
+      ) : null}
+
+      {view === "usuarios" ? (
+        <div className="lootList">
+          {users.map((entry) => (
+            <LootCard
+              key={entry.key}
+              name={entry.user}
+              meta={`${entry.characters.length} ${entry.characters.length === 1 ? "personagem" : "personagens"}`}
+              sessions={entry.sessions}
+              quantity={entry.quantity}
+              rare={entry.rare}
+              preview={entry.items}
+              open={Boolean(open[`u:${entry.key}`])}
+              onToggle={() => toggle(`u:${entry.key}`)}
+            >
+              {entry.characters.map((character) => (
+                <div className="lootSub" key={character.key}>
+                  <div className="lootSubHead">
+                    <strong>{character.player}</strong>
+                    <span>{`${character.sessions} reg. / ${formatNumber(character.quantity)} itens${character.rare ? ` / ${formatNumber(character.rare)} raros` : ""}`}</span>
+                  </div>
+                  <CharacterBody character={character} showUsers={false} />
+                </div>
+              ))}
+            </LootCard>
+          ))}
+        </div>
+      ) : null}
+
+      {view === "historico" ? (
         <div className="lootLogList">
           {filtered.slice(0, visibleSessions).map((session) => (
             <article className="lootLogCard" key={session.id}>
@@ -218,14 +376,12 @@ export default function LootPage() {
                 </div>
                 <div className="lootLogMeta">
                   <span>{formatDate(session.date)}</span>
-                  <span>{`registrado as ${formatTime(session.createdAt)}${session.registeredBy ? ` por ${session.registeredBy}` : ""}`}</span>
+                  <span>{`${formatTime(session.createdAt)}${session.registeredBy ? ` / ${session.registeredBy}` : ""}`}</span>
                 </div>
               </div>
               <div className="lootChips">
                 {session.items.map((item) => (
-                  <span className={`lootChip tier-${categoryOrder(item.category)}`} key={`${session.id}-${item.item}`} title={item.category}>
-                    {`${formatNumber(item.quantity)}x ${item.item}`}
-                  </span>
+                  <ItemChip item={item} key={`${session.id}-${item.item}`} />
                 ))}
               </div>
             </article>
@@ -237,11 +393,11 @@ export default function LootPage() {
             </button>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {!filtered.length ? (
         <div className="emptyLootState">
-          <Users size={22} />
+          <Gem size={22} />
           <p>{hasFilters ? "Nenhum drop encontrado com esses filtros." : "Nenhum loot registrado ainda."}</p>
         </div>
       ) : null}

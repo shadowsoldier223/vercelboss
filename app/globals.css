@@ -1820,29 +1820,285 @@ h3 {
 }
 
 /* ---- Aba Loot (somente leitura) ---- */
-.lootToolbar {
+.lootOverview {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto auto;
-  gap: 10px;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.lootHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.lootHeader h1 {
+  margin: 2px 0 0;
+  font-size: 1.5rem;
+}
+
+.lootPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lootPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+  padding: 4px 11px;
+  font-size: 0.78rem;
+}
+
+.lootPill strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.lootPill.rare strong,
+.lootCardStats .rare strong {
+  color: #93c5fd;
+}
+
+.lootToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   align-items: center;
 }
 
-.lootToolbar select {
-  min-height: 42px;
+.lootToolbar .searchBox {
+  flex: 1 1 200px;
+  min-width: 0;
 }
 
+.lootToolbar select {
+  flex: 0 1 190px;
+  min-height: 38px;
+}
+
+.lootTabs {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 3px;
+  gap: 2px;
+}
+
+.lootTabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 4px 12px;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.lootTabs button:hover {
+  color: var(--amber-2);
+}
+
+.lootTabs button.active {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.lootIconButton {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--muted-strong);
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+
+.lootIconButton:hover:not(:disabled) {
+  border-color: var(--amber);
+  color: var(--amber-2);
+}
+
+.lootList,
 .lootLogList {
   display: grid;
+  gap: 8px;
+}
+
+.lootCard {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(243, 161, 31, 0.06), transparent 42%),
+    var(--surface-3);
+  overflow: hidden;
+}
+
+.lootCard.open {
+  border-color: rgba(243, 161, 31, 0.38);
+}
+
+.lootCardHead {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 10px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.lootCardHead:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.lootAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(243, 161, 31, 0.14);
+  color: var(--amber-2);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.lootCardTitle {
+  min-width: 0;
+  display: grid;
+}
+
+.lootCardTitle strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.lootCardTitle small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lootCardStats {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.lootCardStats strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.lootChevron {
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.lootCard.open .lootChevron {
+  transform: rotate(180deg);
+  color: var(--amber-2);
+}
+
+.lootPreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 12px 10px 52px;
+}
+
+.lootMore {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.lootCardBody {
+  border-top: 1px solid var(--line-soft);
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.lootBossGroups {
+  display: grid;
+  gap: 8px;
+}
+
+.lootBossRow {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.lootBossName {
+  color: var(--amber-2);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.lootSub {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: rgba(15, 17, 26, 0.45);
+  padding: 9px 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.lootSubHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.lootSubHead strong {
+  color: var(--text);
+}
+
+.lootSubHead span,
+.lootFootnote {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.lootFootnote {
+  margin: 0;
 }
 
 .lootLogCard {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface-3);
-  padding: 12px;
+  padding: 9px 12px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .lootLogHead {
@@ -1859,56 +2115,82 @@ h3 {
 
 .lootLogHead span {
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   overflow-wrap: anywhere;
 }
 
 .lootLogMeta {
   text-align: right;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .lootChips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .lootChip {
   border: 1px solid var(--line-soft);
   border-radius: 6px;
-  background: rgba(15, 17, 26, 0.58);
+  background: rgba(15, 17, 26, 0.6);
   color: var(--muted-strong);
-  padding: 5px 9px;
-  font-size: 0.84rem;
-  font-weight: 700;
+  padding: 3px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Bonus de boss: nao entra na contagem de raros, entao aparece tracejado. */
+.lootChip.bonus {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
+.lootChip b {
+  color: inherit;
+  font-weight: 900;
+  margin-right: 2px;
 }
 
 /* Raridade: 0 unico, 1 muito raro, 2 raro, 3 semi-raro, 4+ comum */
-.lootChip.tier-0,
-.characterItemRow em.tier-0 {
+.lootChip.tier-0 {
   border-color: rgba(255, 209, 102, 0.6);
+  background: rgba(255, 209, 102, 0.08);
   color: var(--amber-2);
 }
 
-.lootChip.tier-1,
-.characterItemRow em.tier-1 {
+.lootChip.tier-1 {
   border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(167, 139, 250, 0.08);
   color: #c4b5fd;
 }
 
-.lootChip.tier-2,
-.characterItemRow em.tier-2 {
+.lootChip.tier-2 {
   border-color: rgba(90, 154, 214, 0.55);
+  background: rgba(90, 154, 214, 0.08);
   color: #93c5fd;
 }
 
-.lootChip.tier-3,
-.characterItemRow em.tier-3 {
+.lootChip.tier-3 {
   color: #8ff2c8;
 }
 
+.characterItemRow em.tier-0 {
+  color: var(--amber-2);
+}
+
+.characterItemRow em.tier-1 {
+  color: #c4b5fd;
+}
+
+.characterItemRow em.tier-2 {
+  color: #93c5fd;
+}
+
+.characterItemRow em.tier-3 {
+  color: #8ff2c8;
+}
 /* ---- Aba Duos ---- */
 .duoBadge {
   display: inline-block;
@@ -1942,9 +2224,44 @@ h3 {
   cursor: not-allowed;
 }
 
-@media (max-width: 1100px) {
-  .lootToolbar {
+@media (max-width: 760px) {
+  .lootToolbar select {
+    flex: 1 1 100%;
+  }
+
+  .lootTabs {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .lootTabs button {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 0.78rem;
+  }
+
+  .lootCardHead {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .lootCardStats {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .lootPreview {
+    padding-left: 12px;
+  }
+
+  .lootBossRow {
     grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .lootBossName {
+    padding-top: 0;
   }
 
   .lootLogHead {
@@ -1954,17 +2271,6 @@ h3 {
   .lootLogMeta {
     text-align: left;
   }
-}
-
-.lootExport {
-  width: auto;
-  margin-top: 0;
-  min-height: 38px;
-}
-
-.lootExport:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .duoRow p.duoRecord {
