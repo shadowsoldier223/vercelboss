@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -109,8 +110,18 @@ function useAppDataState() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [remoteSyncAllowed, setRemoteSyncAllowed] = useState(false);
+  const dataRef = useRef(data);
+  const dataVersionRef = useRef(0);
+  const syncPendingRef = useRef(false);
+
+  useEffect(() => {
+    dataRef.current = data;
+    dataVersionRef.current += 1;
+  }, [data]);
 
   const refreshData = useCallback(async () => {
+    if (syncPendingRef.current) return false;
+
     const response = await fetch("/api/state", { cache: "no-store" }).catch(() => null);
 
     if (!response?.ok) return false;
@@ -215,37 +226,63 @@ function useAppDataState() {
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled || (!remoteSyncAllowed && !hasCustomLocalData(data))) return;
 
+    syncPendingRef.current = true;
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      void fetch("/api/state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            setRemoteEnabled(false);
-            return;
-          }
+    const sentVersion = dataVersionRef.current;
 
-          const payload = (await response.json()) as { data?: Partial<AppData> };
-          const synced = payload.data ? normalizeAppData(payload.data) : null;
+    void fetch("/api/state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Nao foi possivel sincronizar os dados.");
+        }
 
-          if (synced && JSON.stringify(synced) !== JSON.stringify(data)) {
-            setData(synced);
-          }
+        const payload = (await response.json()) as { data?: Partial<AppData> };
+        const synced = payload.data ? normalizeAppData(payload.data) : null;
 
+        if (!controller.signal.aborted && synced && sentVersion === dataVersionRef.current && JSON.stringify(synced) !== JSON.stringify(dataRef.current)) {
+          setData(synced);
+        }
+
+        if (!controller.signal.aborted) {
+          syncPendingRef.current = false;
           setRemoteSyncAllowed(true);
-        })
-        .catch(() => setRemoteEnabled(false));
-    }, 220);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          syncPendingRef.current = false;
+          setRemoteEnabled(false);
+        }
+      });
 
     return () => {
-      window.clearTimeout(timeout);
       controller.abort();
     };
   }, [currentUser, data, hasLoaded, remoteEnabled, remoteSyncAllowed]);
+
+  useEffect(() => {
+    if (!hasLoaded || !currentUser || !remoteEnabled) return;
+
+    function flushPendingSync() {
+      if (!syncPendingRef.current) return;
+
+      void fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataRef.current),
+        keepalive: true,
+      });
+    }
+
+    window.addEventListener("pagehide", flushPendingSync);
+
+    return () => window.removeEventListener("pagehide", flushPendingSync);
+  }, [currentUser, hasLoaded, remoteEnabled]);
 
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled) return;
