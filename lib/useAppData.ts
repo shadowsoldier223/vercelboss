@@ -103,6 +103,8 @@ function useAppDataState() {
   const dataRef = useRef(data);
   const dataVersionRef = useRef(0);
   const syncPendingRef = useRef(false);
+  const syncQueueRef = useRef(Promise.resolve());
+  const syncCountRef = useRef(0);
 
   useEffect(() => {
     dataRef.current = data;
@@ -177,13 +179,13 @@ function useAppDataState() {
 
         const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
         const sessionPayload = sessionResponse?.ok ? ((await sessionResponse.json()) as { user?: AppUser | null }) : null;
-        const storedSession = window.localStorage.getItem(sessionKey);
-        const storedUser = nextData.users.find((user) => user.id === storedSession);
-        const fallbackUser = storedUser ? { id: storedUser.id, username: storedUser.username, role: storedUser.role } : null;
-
         if (!cancelled) {
           setData(nextData);
-          setCurrentUser(sessionPayload?.user ?? fallbackUser);
+          setCurrentUser(sessionPayload?.user ?? null);
+
+          if (!sessionPayload?.user) {
+            window.localStorage.removeItem(sessionKey);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -216,17 +218,20 @@ function useAppDataState() {
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled || (!remoteSyncAllowed && !hasCustomLocalData(data))) return;
 
-    syncPendingRef.current = true;
-    const controller = new AbortController();
     const sentVersion = dataVersionRef.current;
+    const snapshot = data;
 
-    void fetch("/api/state", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
+    syncCountRef.current += 1;
+    syncPendingRef.current = true;
+
+    const write = async () => {
+      try {
+        const response = await fetch("/api/state", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(snapshot),
+        });
+
         if (!response.ok) {
           throw new Error("Nao foi possivel sincronizar os dados.");
         }
@@ -234,45 +239,22 @@ function useAppDataState() {
         const payload = (await response.json()) as { data?: Partial<AppData> };
         const synced = payload.data ? normalizeAppData(payload.data) : null;
 
-        if (!controller.signal.aborted && synced && sentVersion === dataVersionRef.current && JSON.stringify(synced) !== JSON.stringify(dataRef.current)) {
+        if (synced && sentVersion === dataVersionRef.current && JSON.stringify(synced) !== JSON.stringify(dataRef.current)) {
           setData(synced);
         }
 
-        if (!controller.signal.aborted) {
-          syncPendingRef.current = false;
-          setRemoteSyncAllowed(true);
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          syncPendingRef.current = false;
-          setRemoteEnabled(false);
-        }
-      });
-
-    return () => {
-      controller.abort();
+        setRemoteSyncAllowed(true);
+      } catch {
+        setRemoteEnabled(false);
+      } finally {
+        syncCountRef.current -= 1;
+        syncPendingRef.current = syncCountRef.current > 0;
+      }
     };
+
+    syncQueueRef.current = syncQueueRef.current.catch(() => undefined).then(write);
+    void syncQueueRef.current;
   }, [currentUser, data, hasLoaded, remoteEnabled, remoteSyncAllowed]);
-
-  useEffect(() => {
-    if (!hasLoaded || !currentUser || !remoteEnabled) return;
-
-    function flushPendingSync() {
-      if (!syncPendingRef.current) return;
-
-      void fetch("/api/state", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataRef.current),
-        keepalive: true,
-      });
-    }
-
-    window.addEventListener("pagehide", flushPendingSync);
-
-    return () => window.removeEventListener("pagehide", flushPendingSync);
-  }, [currentUser, hasLoaded, remoteEnabled]);
 
   useEffect(() => {
     if (!hasLoaded || !currentUser || !remoteEnabled) return;
