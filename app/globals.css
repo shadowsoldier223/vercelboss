@@ -2305,3 +2305,232 @@ h3 {
   border-color: rgba(226, 93, 79, 0.5);
   color: #ff9d92;
 }
+
+/* ---- Party (divisor de loot) ---- */
+.partyInput {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.84rem;
+}
+
+.partyInput:focus {
+  outline: none;
+  border-color: var(--amber);
+}
+
+.partyActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.partyActions .secondaryButton {
+  width: auto;
+  margin-top: 0;
+}
+
+.transferList {
+  display: grid;
+  gap: 8px;
+}
+
+.transferRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 9px 12px;
+}
+
+.transferRow > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.transferRow strong {
+  color: var(--amber-2);
+}
+
+.transferRow span {
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+}
+
+.transferRow code {
+  color: #93c5fd;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.partyTable {
+  display: grid;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.partyTableHead,
+.partyTableRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.4fr) repeat(3, minmax(90px, 1fr));
+  gap: 10px;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 0.86rem;
+}
+
+.partyTableHead {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.partyTableRow {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
+}
+
+.partyTableRow em {
+  font-style: normal;
+  font-weight: 800;
+}
+
+.partyTableRow em.pays {
+  color: #ff9d92;
+}
+
+.partyTableRow em.gets {
+  color: #8ff2c8;
+}
+
+/* ---- Rankings (Stats) ---- */
+.rankingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.rankingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.rankingList li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
+  padding: 7px 10px;
+}
+
+.rankingList strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.rankingList small {
+  color: var(--muted);
+}
+
+.rankingList em {
+  font-style: normal;
+  font-weight: 900;
+  color: var(--amber-2);
+  white-space: nowrap;
+}
+
+.rankingPos {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.rankingPos.pos-1 {
+  background: rgba(255, 209, 102, 0.2);
+  color: var(--amber-2);
+}
+
+.rankingPos.pos-2 {
+  background: rgba(200, 210, 225, 0.16);
+  color: #dbe3ee;
+}
+
+.rankingPos.pos-3 {
+  background: rgba(205, 127, 50, 0.2);
+  color: #e0a875;
+}
+
+/* ---- Aviso de duo liberado ---- */
+.notifyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--muted-strong);
+  padding: 6px 11px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.notifyButton:hover {
+  border-color: var(--amber);
+  color: var(--amber-2);
+}
+
+.notifyButton.active {
+  border-color: rgba(51, 185, 129, 0.6);
+  color: #8ff2c8;
+}
+
+@media (max-width: 1100px) {
+  .rankingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .partyTableHead {
+    display: none;
+  }
+
+  .partyTableRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .partyTableRow strong {
+    grid-column: 1 / -1;
+  }
+}
+
+.rankingList em.neg {
+  color: #ff9d92;
+}

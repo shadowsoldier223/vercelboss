@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BarChart3, Crown, Gem, RefreshCw, Shield, Swords, Trash2, Trophy } from "lucide-react";
+import { Rankings } from "@/components/Rankings";
 import { StatCard } from "@/components/StatCard";
 import { formatDate, formatNumber, formatSignedNumber, formatTime } from "@/lib/format";
 import { cleanLootItemName, isBossBonusLoot, normalizeLootItemKey } from "@/lib/lootNames";
@@ -320,6 +321,8 @@ export default function EstatisticasPage() {
         <StatCard icon={Swords} label="Hunts salvas" value={stats.registeredHunts} />
         <StatCard icon={Trophy} label="Balance hunts" value={formatSignedNumber(stats.huntBalance)} />
       </section>
+
+      <Rankings hunts={data.hunts} duos={data.duos} />
 
       <section className="statsColumns">
         <div className="panel">

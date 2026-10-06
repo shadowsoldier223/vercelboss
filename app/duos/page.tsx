@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Clock, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
+import { Bell, BellOff, Check, Clock, Plus, RotateCcw, Shield, Trash2, Users, X } from "lucide-react";
 import { LootRegistrationModal } from "@/components/LootRegistrationModal";
 import { StatCard } from "@/components/StatCard";
 import { formatDate, formatReleaseAt, formatRemainingTime, formatTime, isCooldownActive } from "@/lib/format";
@@ -28,6 +28,8 @@ function describeDuo(duo: Duo, now: number) {
   };
 }
 
+const notifyStorageKey = "closed.duoNotify";
+
 export default function DuosPage() {
   const { currentUser, data, addDuo, isAdmin, markDuo, removeDuo, resetDuo } = useAppData();
   const now = useNow();
@@ -35,6 +37,10 @@ export default function DuosPage() {
   const [right, setRight] = useState("");
   const [formError, setFormError] = useState("");
   const [lootDuo, setLootDuo] = useState<Duo | null>(null);
+  const [notifyOn, setNotifyOn] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState("");
+  // Ultimo estado (em cooldown ou nao) de cada duo, para detectar o instante em que libera.
+  const cooledRef = useRef<Map<string, boolean>>(new Map());
 
   const duoBosses = useMemo(() => data.lootBosses.filter((boss) => boss.mode === "duo"), [data.lootBosses]);
 
@@ -49,6 +55,57 @@ export default function DuosPage() {
         return new Date(a.duo.cooldownUntil ?? 0).getTime() - new Date(b.duo.cooldownUntil ?? 0).getTime();
       });
   }, [data.duos, now]);
+
+  useEffect(() => {
+    if (typeof Notification === "undefined") return;
+
+    try {
+      setNotifyOn(window.localStorage.getItem(notifyStorageKey) === "1" && Notification.permission === "granted");
+    } catch {
+      setNotifyOn(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const known = cooledRef.current;
+    const canNotify = notifyOn && typeof Notification !== "undefined" && Notification.permission === "granted";
+
+    for (const row of rows) {
+      if (canNotify && known.get(row.duo.id) && !row.cooling) {
+        new Notification("Duo liberado", {
+          body: `${row.duo.left} + ${row.duo.right} ja pode fazer o boss de novo.`,
+          tag: `duo-${row.duo.id}`,
+        });
+      }
+
+      known.set(row.duo.id, row.cooling);
+    }
+  }, [rows, notifyOn]);
+
+  async function toggleNotify() {
+    setNotifyMessage("");
+
+    if (typeof Notification === "undefined") {
+      setNotifyMessage("Este navegador nao suporta notificacoes.");
+      return;
+    }
+
+    if (notifyOn) {
+      setNotifyOn(false);
+      window.localStorage.setItem(notifyStorageKey, "0");
+      return;
+    }
+
+    const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      setNotifyMessage("Permissao negada. Libere as notificacoes deste site nas configuracoes do navegador.");
+      return;
+    }
+
+    setNotifyOn(true);
+    window.localStorage.setItem(notifyStorageKey, "1");
+  }
 
   const cooldownCount = rows.filter((row) => row.cooling).length;
   const nextRelease = rows.find((row) => row.cooling);
@@ -170,7 +227,18 @@ export default function DuosPage() {
               <span className="eyebrow">Controle</span>
               <h2>Lista de duos</h2>
             </div>
+            <button
+              type="button"
+              className={`notifyButton${notifyOn ? " active" : ""}`}
+              onClick={toggleNotify}
+              aria-pressed={notifyOn}
+              title="Avisa quando um duo liberar. Funciona enquanto esta aba estiver aberta."
+            >
+              {notifyOn ? <Bell size={15} /> : <BellOff size={15} />}
+              {notifyOn ? "Avisos ligados" : "Avisar quando liberar"}
+            </button>
           </div>
+          {notifyMessage ? <p className="errorNotice">{notifyMessage}</p> : null}
 
           <div className="duoList">
             {rows.map(({ duo, badge, tone, text, record }) => (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { BarChart3, Cloud, CloudOff, CloudUpload, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, UserRound, Users } from "lucide-react";
+import { BarChart3, Cloud, Coins, CloudOff, CloudUpload, Crown, Gem, Home, LogIn, LogOut, Swords, UserCog, UserRound, Users } from "lucide-react";
 import { useAppData } from "@/lib/useAppData";
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/bosses", label: "Bosses", icon: Crown },
   { href: "/duos", label: "Duos", icon: Users },
   { href: "/loot", label: "Loot", icon: Gem },
+  { href: "/party", label: "Party", icon: Coins },
   { href: "/estatisticas", label: "Stats", icon: BarChart3 },
   { href: "/perfil", label: "Perfil", icon: UserRound },
 ];
